@@ -69,6 +69,7 @@
 #'   method = "all",
 #'   sensitivity = "medium"
 #' )
+#'
 detect_regimes <- function(data, method = "smart", sensitivity = "medium",
                            min_change, window = 10, consolidate = FALSE,
                            similarity = 0.6, peak = 2.0, cumulative = 0.6) {
