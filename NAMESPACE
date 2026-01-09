@@ -2,6 +2,7 @@
 
 S3method(plot,ews)
 export(complexity)
+export(convert)
 export(detect_regimes)
 export(detect_warnings)
 export(discover_patterns)

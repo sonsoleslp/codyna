@@ -5,7 +5,7 @@
 #' threshold analysis, gradient changes, and entropy analysis.
 #'
 #' @export
-#' @param data \[`ts`, `numeric()`]\cr Univariate time series data
+#' @param data \[`ts`, `numeric()`]\cr Univariate time series data.
 #' @param method \[`character(1)`]\cr Detection method.
 #'   The available options are:
 #'
@@ -35,7 +35,7 @@
 #'   the threshold for considering regimes similar enough to merge if
 #'   `consolidate = TRUE`. Based on normalized mean difference.
 #'   The default is `0.6`.
-#' @param peak \[`numeric(1)`]\cr Base Z-score threshold for individual peak
+#' @param peak \[`numeric(1)`]\cr Base z-score threshold for individual peak
 #'   detection with the `"cumulative_peaks"` method.
 #'   Adjusted by `sensitivity`. The default is `2.0`.
 #' @param cumulative \[`numeric(1)`]\cr A value between 0 and 1 that defines
@@ -72,9 +72,14 @@ detect_regimes <- function(data, method = "smart", sensitivity = "medium",
   data <- prepare_timeseries_data(data)
   values <- data$values
   time <- data$time
-  valid_methods <- detection_methods
-  method <- check_match(method, valid_methods)
+  method <- check_match(method, detection_methods)
+  sensitivity <- check_match(sensitivity, c("low", "medium", "high"))
   n <- length(values)
+  check_range(window, type = "integer", min = 2L, max = n - 1)
+  check_flag(consolidate)
+  check_range(similarity)
+  check_range(cumulative)
+  check_values(peak, type = "numeric")
   min_change <- ifelse_(missing(min_change), max(10, floor(n * 0.10)))
   min_change <- max(1, floor(min_change))
   params <- default_detection_parameters(

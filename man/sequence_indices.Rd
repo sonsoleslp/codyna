@@ -10,7 +10,7 @@ sequence_indices(data, cols, favorable, omega = 1, ...)
 \item{data}{[\code{data.frame}, \code{matrix}, \code{stslist}]\cr
 Sequence data in wide format (rows are sequences, columns are time points).}
 
-\item{cols}{An \code{expression} giving a tidy selection of columns that should
+\item{cols}{[\code{expression}]\cr A tidy selection of columns that should
 be considered as sequence data. By default, all columns are used.}
 
 \item{favorable}{A \code{character} vector of state names that should be

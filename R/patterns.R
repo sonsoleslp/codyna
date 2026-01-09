@@ -46,6 +46,20 @@ discover_patterns <- function(data, type = "ngram", pattern, len = 2:5,
   type <- check_match(type, c("ngram", "gapped", "repeated"))
   check_range(len, scalar = FALSE, type = "integer", min = 2, max = m)
   check_range(gap, scalar = FALSE, type = "integer", min = 1, max = m - 2)
+  check_range(min_support)
+  check_values(min_count)
+  stopifnot_(
+    missing(start) || is.character(start),
+    "Argument {.arg start} must be a character vector."
+  )
+  stopifnot_(
+    missing(end) || is.character(end),
+    "Argument {.arg end} must be a character vector."
+  )
+  stopifnot_(
+    missing(contains) || is.character(contains),
+    "Argument {.arg contains} must be a character vector."
+  )
   if (!missing(pattern)) {
     check_string(pattern)
     patterns <- search_pattern(sequences, alphabet, pattern)
@@ -251,21 +265,33 @@ search_pattern <- function(sequences, alphabet, pattern) {
   list(discovered)
 }
 
-filter_patterns <- function(x, min_support, min_count, start, end, contains) {
-  out <- x |>
+
+#' Filter patterns based on various criteria
+#'
+#' @noRd
+filter_patterns <- function(patterns, min_support, min_count,
+                            start, end, contains) {
+  out <- patterns |>
     dplyr::filter(!!rlang::sym("support") >= min_support) |>
     dplyr::filter(!!rlang::sym("count") >= min_count)
   if (!missing(start)) {
+    is_prefix <- function(x, prefix) {
+      vapply(x, function(y) any(startsWith(y, prefix)), logical(1L))
+    }
     out <- out |>
-      dplyr::filter(startsWith(!!rlang::sym("pattern"), start))
+      dplyr::filter(is_prefix(!!rlang::sym("pattern"), start))
   }
   if (!missing(end)) {
+    is_suffix <- function(x, suffix) {
+      vapply(x, function(y) any(endsWith(y, suffix)), logical(1L))
+    }
     out <- out |>
-      dplyr::filter(endsWith(!!rlang::sym("pattern"), end))
+      dplyr::filter(is_suffix(!!rlang::sym("pattern"), end))
   }
   if (!missing(contains)) {
+    pat <- paste0(contains, collapse = "|")
     out <- out |>
-      dplyr::filter(grepl(contains, !!rlang::sym("pattern")))
+      dplyr::filter(grepl(pat, !!rlang::sym("pattern"), perl = TRUE))
   }
   out
 }

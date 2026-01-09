@@ -9,7 +9,7 @@
 #' @param measures \[`character()`]\cr A vector of measures to calculate.
 #'   See 'Details' for more information on the available measures.
 #' @param window \[`integer(1)`]\cr A positive `integer` specifying the rolling
-#'   window size. Must be at least 2. The default is 7.
+#'   window size. Must be at least `2` (default: `7`).
 #' @param align \[`character(1)`]\cr Alignment of the window. The available
 #'   options are: `"center"` (default), `"right"`, and `"left"`. The calculated
 #'   measure is assigned to the center, rightmost, or leftmost point of the
@@ -17,7 +17,7 @@
 #' @return A `tibble` with the time index, the original time-series data,
 #'   and the calculated measures.
 #' @details The following measures can be calculated:
-
+#'
 #'   * `"complexity"`: Product of fluctuation and distribution measures.
 #'   * `"fluctuation"`: Root mean square of successive differences.
 #'   * `"distribution"`: Deviation from uniform distribution.
@@ -26,7 +26,7 @@
 #'   * `"min"`: Rolling minimum.
 #'   * `"variance"`: Rolling variance.
 #'
-#' The option `"all"` computes all of the above.
+#'   The option `"all"` computes all of the above.
 #'
 #' @examples
 #' set.seed(123)
@@ -44,18 +44,13 @@ complexity <- function(data, measures = "complexity",
   data <- prepare_timeseries_data(data)
   values <- data$values
   time <- data$time
-  # TODO check window
   valid_measures <- c(names(complexity_funs), "complexity")
   measures <- check_match(
     measures,
     c(valid_measures, "all"),
     several.ok = TRUE
   )
-  measures <- ifelse_(
-    "all" %in% measures,
-    valid_measures,
-    measures
-  )
+  measures <- ifelse_("all" %in% measures, valid_measures, measures)
   measures <- ifelse_(
     "complexity" %in% measures,
     c(setdiff(measures, "complexity"), "complexity"),
@@ -63,16 +58,9 @@ complexity <- function(data, measures = "complexity",
   )
   align <- check_match(align, c("left", "right", "center"))
   n <- length(values)
-  stopifnot_(
-    n >= window,
-    "The number of observations ({n}) must be at least the window size
-     ({window})."
-  )
+  check_range(window, type = "integer", min = 2L, max = n)
   scale <- range(values, na.rm = TRUE)
-  out <- data.frame(
-    values = values,
-    time = time
-  )
+  out <- data.frame(values = values, time = time)
   for (measure in measures) {
     if (measure == "complexity") {
       fluctuation <- out$fluctuation %||% roll(

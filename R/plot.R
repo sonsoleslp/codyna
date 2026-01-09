@@ -1,7 +1,7 @@
 #' Plot EWS Results
 #'
 #' @export
-#' @param x \[`ews`\]\cr Output of [detect_warnings()].
+#' @param x \[`ews`]\cr Output of [detect_warnings()].
 #' @param ... Ignored.
 #' @return A `ggplot` object.
 #' @examples

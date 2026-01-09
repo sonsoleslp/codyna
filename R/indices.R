@@ -3,7 +3,7 @@
 #' @export
 #' @param data \[`data.frame`, `matrix`, `stslist`]\cr
 #'   Sequence data in wide format (rows are sequences, columns are time points).
-#' @param cols An `expression` giving a tidy selection of columns that should
+#' @param cols \[`expression`]\cr A tidy selection of columns that should
 #'   be considered as sequence data. By default, all columns are used.
 #' @param favorable A `character` vector of state names that should be
 #'   considered as favorable states.

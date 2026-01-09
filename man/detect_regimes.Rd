@@ -17,7 +17,7 @@ detect_regimes(
 )
 }
 \arguments{
-\item{data}{[\code{ts}, \code{numeric()}]\cr Univariate time series data}
+\item{data}{[\code{ts}, \code{numeric()}]\cr Univariate time series data.}
 
 \item{method}{[\code{character(1)}]\cr Detection method.
 The available options are:
@@ -54,7 +54,7 @@ the threshold for considering regimes similar enough to merge if
 \code{consolidate = TRUE}. Based on normalized mean difference.
 The default is \code{0.6}.}
 
-\item{peak}{[\code{numeric(1)}]\cr Base Z-score threshold for individual peak
+\item{peak}{[\code{numeric(1)}]\cr Base z-score threshold for individual peak
 detection with the \code{"cumulative_peaks"} method.
 Adjusted by \code{sensitivity}. The default is \code{2.0}.}
 

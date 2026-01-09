@@ -13,7 +13,7 @@ complexity(data, measures = "complexity", window = 7L, align = "center")
 See 'Details' for more information on the available measures.}
 
 \item{window}{[\code{integer(1)}]\cr A positive \code{integer} specifying the rolling
-window size. Must be at least 2. The default is 7.}
+window size. Must be at least \code{2} (default: \code{7}).}
 
 \item{align}{[\code{character(1)}]\cr Alignment of the window. The available
 options are: \code{"center"} (default), \code{"right"}, and \code{"left"}. The calculated
