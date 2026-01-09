@@ -264,7 +264,7 @@ detect_cumulative_peaks <- function(values, time, params) {
       window_mean <- mean(window_data, na.rm = TRUE)
       window_sd <- stats::sd(window_data, na.rm = TRUE)
       if (!is.na(window_sd)) {
-        z <- (val - window_mean) / sd_baseline
+        z <- (val - window_mean) / window_sd
         z_scores[i] <- z
         if (!is.na(z) && is.finite(z) && z > peak) {
           peak_indicators[i] <- TRUE
@@ -562,16 +562,16 @@ detect_smart <- function(values, time, params) {
   n <- length(values)
   res_slope <- detect_slope(values, time, params)
   res_peaks <- detect_cumulative_peaks(values, time, params)
-  res_changepoint <- detect_changepoints(values, time, params)
+  res_change <- detect_changepoints(values, time, params)
   w_slope <- 0.4
   w_peaks <- 0.3
-  w_changepoint <- 0.3
+  w_change <- 0.3
   combined_score <- res_slope$change * w_slope +
-    res_peaks$change * w_peaks + res_changepoint$change * w_changepoint
+    res_peaks$change * w_peaks + res_change$change * w_change
   consensus_prop <- (params$sensitivity == "medium") * 0.35 +
     (params$sensitivity == "high") * 0.25 +
     (params$sensitivity == "low") * 0.5
-  max_score <- w_slope + w_peaks + w_changepoint
+  max_score <- w_slope + w_peaks + w_change
   change <- combined_score >= (consensus_prop * max_score)
   change <- min_change_constraint(change, params$min_change)
   type <- rep("none", n)
@@ -590,10 +590,10 @@ detect_smart <- function(values, time, params) {
       type[i] <- res_peaks$type[i]
       magnitude[i] <- res_peaks$magnitude[i]
       type_set <- TRUE
-    } else if (!is.null(res_changepoint) && res_changepoint$change[i]
-               && res_changepoint$type[i] != "none") {
+    } else if (!is.null(res_change) && res_change$change[i]
+               && res_change$type[i] != "none") {
       type[i] <- res_change$type[i]
-      magnitude[i] <- res_changepoint$magnitude[cp_idx]
+      magnitude[i] <- res_change$magnitude[i]
       type_set <- TRUE
     }
     if (!type_set) {
@@ -620,7 +620,7 @@ detect_threshold  <- function(values, time, params) {
   q <- unique(stats::quantile(values, probs = probs, na.rm = TRUE))
   nq <- length(q)
   if (nq < 2L) {
-    warnin_g("Could not define distinct quantiles for threshold method.")
+    warning_("Could not define distinct quantiles for threshold method.")
     regimes_raw <- rep(1L, n)
   } else {
     regimes_raw <- as.integer(

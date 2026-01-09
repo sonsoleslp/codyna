@@ -16,6 +16,7 @@ Imports:
     cli,
     dplyr,
     ggplot2,
+    patchwork,
     rlang,
     stats,
     tibble,

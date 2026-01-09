@@ -5,8 +5,8 @@
 #' patterns and targeted pattern search.
 #'
 #' @export
-#' @param data \[`data.frame`]\cr Sequence data in wide format
-#'   (rows are sequences, columns are time points).
+#' @param data \[`data.frame`, `matrix`, `stslist`]\cr
+#'   Sequence data in wide format (rows are sequences, columns are time points).
 #' @param type \[`character(1)`]\cr Type of pattern analysis:
 #'
 #'   * `"ngram"`: Extract contiguous n-grams.
@@ -31,7 +31,9 @@
 #' @param contains \[`character(1)`]\cr Filter patterns containing these states.
 #' @return A `tibble` containing the discover patterns, counts, proportions,
 #'   and support.
-#' @examples TODO
+#' @examples
+#' # TODO
+#' x <- rnorm(1)
 #'
 discover_patterns <- function(data, type = "ngram", pattern, len = 2:5,
                               gap = 1:3, min_support = 0.01, min_count = 2,

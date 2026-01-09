@@ -1,75 +1,35 @@
 #' Compute Sequence Indices for Sequence Data
 #'
 #' @export
-#' @param x A `data.frame`, `matrix` or a `tna` object created from sequence
-#'   data.
+#' @param data \[`data.frame`, `matrix`, `stslist`]\cr
+#'   Sequence data in wide format (rows are sequences, columns are time points).
 #' @param cols An `expression` giving a tidy selection of columns that should
 #'   be considered as sequence data. By default, all columns are used.
-#'   Ignored if `x` is a `tna` object.
 #' @param favorable A `character` vector of state names that should be
 #'   considered as favorable states.
 #' @param omega A `numeric` value for the omega parameter used to compute
 #'   the integrative potential.
 #' @param ... Not used.
-#' @return A `data.frame` containing the index values.
+#' @return A `tibble` containing the index values.
 #' @examples
+#' # TODO
+#' x <- rnorm(1)
 #'
-sequence_indices <- function(x, ...) {
-  UseMethod("sequence_indices")
-}
-
-#' @export
-#' @rdname sequence_indices
-sequence_indices.tna <- function(x, favorable, omega = 1, ...) {
-  check_missing(x)
-  check_tna_seq(x)
-  sequence_indices_(x$data, favorable, omega)
-}
-
-#' @export
-#' @rdname sequence_indices
-sequence_indices.group_tna <- function(x, favorable, omega = 1, ...) {
-  check_missing(x)
-  check_class(x, "group_tna")
-  data <- combine_data(x)
-  group <- data$.group
-  data$.group <- NULL
-  data <- create_seqdata(data, cols = names(data))
-  sequence_indices_(data, favorable, omega, group)
-}
-
-#' @export
-#' @rdname sequence_indices
-sequence_indices.default <- function(x, cols, favorable, omega = 1, ...) {
-  check_missing(x)
-  stopifnot_(
-    is.matrix(x) || is.data.frame(x),
-    "Argument {.arg x} must be a matrix or a data.frame"
-  )
-  p <- ncol(x)
-  cols <- cols %m% seq_len(p)
-  cols <- get_cols(rlang::enquo(cols), x)
-  data <- create_seqdata(x, cols = cols)
+sequence_indices <- function(data, cols, favorable, omega = 1, ...) {
+  data <- prepare_sequence_data(data)
   sequence_indices_(data, favorable, omega)
 }
 
-sequence_indices_ <- function(data, favorable, omega, group) {
-  model <- initialize_model(
-    x = data,
-    type = "relative",
-    scaling = character(0L),
-    params = list(),
-    transitions = TRUE
-  )
-  trans <- model$trans
-  lab <- model$labels
-  s <- length(lab)
+sequence_indices_ <- function(data, favorable, omega) {
+  alphabet <- data$alphabet
+  a <- length(alphabet)
+  m <- data$sequences
+  trans <- compute_transitions(m, a)
   fav <- integer(0L)
   if (!missing(favorable)) {
-    fav <- which(lab %in% favorable)
-    unfav <- setdiff(seq_along(lab), fav)
+    fav <- which(alphabet %in% favorable)
+    unfav <- setdiff(seq_along(alphabet), fav)
   }
-  m <- as.matrix(data)
   u_vals <- length(unique(c(m)))
   nas <- is.na(m)
   last_obs <- max.col(!nas, ties.method = "last")
@@ -101,8 +61,8 @@ sequence_indices_ <- function(data, favorable, omega, group) {
     row <- m[i, ]
     p <- last_obs[i]
     valid[i] <- sum(!nas[i, ])
-    first[i] <- lab[row[1L]]
-    last[i] <- lab[row[last_obs[i]]]
+    first[i] <- alphabet[row[1L]]
+    last[i] <- alphabet[row[last_obs[i]]]
     freq <- tabulate(row)
     prop <- freq / valid[i]
     pos <- freq > 0
@@ -121,11 +81,7 @@ sequence_indices_ <- function(data, favorable, omega, group) {
     rate[i] <- (total - self) / (valid[i] - 1)
     tmp <- trans[i,,]
     diag(tmp) <- 0
-    # if (!missing(favorable)) {
-    #   fav_to_unfav <- sum(tmp[i, fav, unfav])
-    #   unfav_to_fav <- sum(tmp[i, unfav, fav])
-    # }
-    trans_comp[i] <- sum(tmp > 0) / (s * (s - 1))
+    trans_comp[i] <- sum(tmp > 0) / (a * (a - 1))
     per <- which(is.na(row[-1L]) | (row[-1L] != row[1L]))[1L] / p
     per <- ifelse_(is.na(per), 1.0, per)
     init_per[i] <- per
@@ -136,7 +92,7 @@ sequence_indices_ <- function(data, favorable, omega, group) {
     init_decay[i] <- early - late
     init_prop[i] <- prop[row[1L]]
     dom_idx <- which.max(freq)
-    dom_state[i] <- lab[dom_idx]
+    dom_state[i] <- alphabet[dom_idx]
     dom_prop[i] <- prop[dom_idx]
     dom_spell <- max(spells[values == dom_idx])
     init_spell <- spells[1L]
@@ -166,12 +122,12 @@ sequence_indices_ <- function(data, favorable, omega, group) {
       )
       if (any(spells_candidate > 0)) {
         emergent_idx <- which.max(spells_candidate)
-        emergent_state[i] <- lab[emergent_candidate[emergent_idx]]
+        emergent_state[i] <- alphabet[emergent_candidate[emergent_idx]]
         emergent_per[i] <- spells_candidate[emergent_idx]
         emergent_prop[i] <- prop[emergent_candidate[emergent_idx]]
       }
     }
-    comp[i] <- 0.4 * (long_ent[i] / log(s)) +
+    comp[i] <- 0.4 * (long_ent[i] / log(a)) +
       0.4 * (sum(tmp) / (p - 1)) +
       0.2 * min(stats::sd(spells) / mean(spells), 1.0)
     if (length(fav) > 0L) {
@@ -180,18 +136,8 @@ sequence_indices_ <- function(data, favorable, omega, group) {
       pos <- row[idx] %in% fav
       int_pot[i] <- sum(pos * w) / sum(w)
     }
-    # cyclic_str[i] <- max(
-    #   vapply(
-    #     seq(2L, p - 1L),
-    #     function(y) {
-    #       sum(diff(sequence, lag = y) == 0) / (p - y)
-    #     },
-    #     numeric(1L)
-    #   )
-    # )
   }
   out <- data.frame(
-    group = seq_len(n),
     valid_n = valid,
     valid_proportion = valid / last_obs,
     unique_states = u_states,
@@ -220,8 +166,7 @@ sequence_indices_ <- function(data, favorable, omega, group) {
   if (length(fav) == 0L) {
     out$integrative_potential <- NULL
   }
-  out$group <- group %m% NULL
-  out
+  tibble::as_tibble(out)
 }
 
 cyclic_strength <- function(m, n, k, last_obs) {
@@ -239,4 +184,19 @@ cyclic_strength <- function(m, n, k, last_obs) {
     max_strength <- pmax(max_strength, strength)
   }
   max_strength
+}
+
+compute_transitions <- function(m, a) {
+  n <- nrow(m)
+  p <- ncol(m)
+  idx <- seq_len(n)
+  trans <- array(0L, dim = c(n, a, a))
+  for (i in seq_len(p - 1L)) {
+    from <- m[, i]
+    to <- m[, i + 1L]
+    any_na <- is.na(from) | is.na(to)
+    new_trans <- cbind(idx, from, to)[!any_na, , drop = FALSE]
+    trans[new_trans] <- trans[new_trans] + 1
+  }
+  trans
 }

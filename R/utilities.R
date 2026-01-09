@@ -111,6 +111,34 @@ rescale <- function(x, scale) {
 
 # Functions borrowed from the `dynamite` and `tna` packages -------------------
 
+
+#' Get specific columns from data
+#'
+#' @param expr An `expression` for the columns to select
+#' @param data A `data.frame` to select the columns from
+#' @noRd
+get_cols <- function(expr, data) {
+  if (rlang::quo_is_missing(expr)) {
+    return(rlang::missing_arg())
+  }
+  if (rlang::quo_is_symbolic(expr) && !rlang::quo_is_call(expr, "!!")) {
+    pos <- tidyselect::eval_select(expr = expr, data = data)
+    names(pos)
+  } else {
+    cols <- rlang::eval_tidy(expr = expr)
+    if (is.character(cols)) {
+      intersect(cols, names(data))
+    } else if (is.numeric(cols)) {
+      names(data)[cols]
+    } else {
+      stop_(
+        "Columns must be selected using a tidy selection,
+         a {.cls character} vector, or an {.cls integer} vector."
+      )
+    }
+  }
+}
+
 #' Shorthand for `try(., silent = TRUE)`
 #'
 #' @param expr An \R expression to try.

@@ -38,8 +38,8 @@
 #' # Multiple measures
 #' comp_multi <- complexity(ts_data, measures = c("complexity", "variance"))
 #'
-complexity <- function(data, measures = "complexity", window = 7L,
-                       align = "center") {
+complexity <- function(data, measures = "complexity",
+                       window = 7L, align = "center") {
   check_missing(data)
   data <- prepare_timeseries_data(data)
   values <- data$values

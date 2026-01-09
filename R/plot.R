@@ -2,6 +2,7 @@
 #'
 #' @export
 #' @param x \[`ews`\]\cr Output of [detect_warnings()].
+#' @param ... Ignored.
 #' @return A `ggplot` object.
 #' @examples
 #' set.seed(123)
@@ -100,7 +101,7 @@ plot_rolling_ews <- function(x) {
   ) +
     ggplot2::geom_line(linewidth = 1) +
     ggplot2::facet_wrap(
-      as.formula("~metric"),
+      stats::as.formula("~metric"),
       scales = "free_y",
       ncol = 3,
       drop = TRUE,

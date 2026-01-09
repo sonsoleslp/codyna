@@ -8,7 +8,7 @@
 #' @param metrics \[`character(1)`]\cr Names of the EWS metrics to compute.
 #'   The default is `"all"` computing all metrics. The available options are:
 #'
-#'   * `"ar1`: The autoregressive coefficient of an AR1 model.
+#'   * `"ar1"`: The autoregressive coefficient of an AR1 model.
 #'   * `"sd"`: Standard deviation.
 #'   * `"skew"`: Skewness.
 #'   * `"kurt"`: Kurtosis.
@@ -56,13 +56,13 @@
 #' ews_roll <- detect_warnings(ts_data)
 #'
 #' # Expanding window
-#' ews_exp <- detect_warnings(ts_data, method = "expanding)
+#' ews_exp <- detect_warnings(ts_data, method = "expanding")
 #'
 detect_warnings <- function(data, method = "rolling",
                             metrics = "all", window = 50, burnin = 30,
                             demean = TRUE, detrend = "none",
                             threshold = 2.0, consecutive = 2L,
-                            bandwidth, span, degree, ...) {
+                            bandwidth, span, degree) {
   data <- prepare_timeseries_data(data)
   values <- data$values
   time <- data$time
