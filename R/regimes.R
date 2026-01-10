@@ -165,8 +165,6 @@ min_change_constraint <- function(change, min_change) {
   new_change
 }
 
-
-
 # Detection methods -------------------------------------------------------
 
 detection_methods <- c(
@@ -186,36 +184,7 @@ detect_all <- function(values, time, params) {
   n <- length(values)
   args <- list(values = values, time = time, params = params)
   for (method in methods) {
-    res <- tryCatch({
-      do.call(what = paste0("detect_", method), args = args)
-    }, error = function(e) {
-      warning_(
-        c(
-          "Method {.val {method}} failed in {.val all} mode:",
-          `x` = e$message
-        )
-      )
-      list(
-        method = "all",
-        id = rep(1L, n),
-        change = rep(FALSE, n),
-        type = rep("error", n),
-        magnitude = rep(0, n),
-        confidence = rep(0, n)
-      )
-    })
-    results[[method]] <- res
-  }
-  if (length(results) == 0) {
-    warning_("All methods failed in {.val all} mode.")
-    return(
-      list(
-        change = rep(FALSE, n),
-        type = rep("all_failed", n),
-        magnitude = rep(0,n),
-        confidence = rep(0,n)
-      )
-    )
+    results[[method]] <- do.call(what = paste0("detect_", method), args = args)
   }
   changes <- lapply(results, "[[", "change")
   vote_matrix <- do.call(cbind, changes)
@@ -250,7 +219,6 @@ detect_cumulative_peaks <- function(values, time, params) {
   window <- params$window
   peak <- params$peak
   cumulative <- params$cumulative
-  # TODO data amount check
   peak_indicators <- rep(FALSE, n)
   z_scores <- rep(NA, n)
   half_window <- window %/% 2L
@@ -402,18 +370,6 @@ detect_entropy <- function(values, time, params) {
   window <- params$window
   bins <- params$entropy_bins
   rel <- params$entropy_rel_change
-  if (n < window) {
-    warning_("Not enough data for entropy method with window size {window}.")
-    return(
-      list(
-        change = rep(FALSE, n),
-        id = rep(1L, n),
-        type = rep("ent_insufficient_data", n),
-        magnitude = rep(0, n),
-        confidence = rep(0, n)
-      )
-    )
-  }
   ent <- roll(entropy, values, window = window, align = "center", bins = bins)
   change <- rep(FALSE, n)
   for (i in 2:n) {
@@ -427,7 +383,6 @@ detect_entropy <- function(values, time, params) {
   magnitude <- rep(0, n)
   confidence <- rep(0, n)
   change_idx <- which(change)
-
   for (i in change_idx){
     if (i > 1 && !is.na(ent[i]) && !is.na(ent[i - 1])) {
       type[i] <- ifelse_(
@@ -459,19 +414,6 @@ detect_slope <- function(values, time, params) {
   window <- params$window
   slope_signif <- params$slope_signif
   slope_factor <- params$slope_factor
-  if (n < window) {
-    warning_("Not enough data for slope method with window size {window}")
-    return(
-      list(
-        method = "slope",
-        change = rep(FALSE, n),
-        id = rep(1L, n),
-        type = rep("insufficient_data", n),
-        magnitude = rep(0, n),
-        confidence = rep(0, n)
-      )
-    )
-  }
   slope <- rep(NA, n)
   r_squared <- rep(NA, n)
   half_window <- window %/% 2
@@ -481,7 +423,7 @@ detect_slope <- function(values, time, params) {
     w <- start:end
     if (length(w) < 3) {
       slope[i] <- 0
-      slope_r_squared[i] <- 0
+      r_squared[i] <- 0
       next
     }
     y <- values[w]
@@ -689,7 +631,10 @@ detect_variance_shift <- function(values, time, params) {
   window <- params$window
   var_ratio <- params$variance_ratio
   if (n < window * 2 + 1) {
-    warning_("Not enough data for variance_shift method with window size {window}")
+    warning_(
+      "Not enough data for {.var variance_shift} method
+       with window size {window}."
+    )
     return(
       list(
         change = rep(FALSE, n),
