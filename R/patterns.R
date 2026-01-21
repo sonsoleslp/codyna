@@ -67,9 +67,11 @@ discover_patterns <- function(data, type = "ngram", pattern, len = 2:5,
       `repeated` = extract_repeated(sequences, alphabet, len)
     )
   }
+  support <- state_support(sequences, alphabet)
   process_patterns(patterns) |>
     filter_patterns(min_support, min_count, start, end, contains) |>
-    pattern_proportions()
+    pattern_proportions() |>
+    pattern_lift(support = support)
 }
 
 #' Process discovered patterns
@@ -295,6 +297,20 @@ filter_patterns <- function(patterns, min_support, min_count,
   out
 }
 
+state_support <- function(sequences, alphabet) {
+  n <- nrow(sequences)
+  m <- ncol(sequences)
+  a <- length(alphabet)
+  support <- integer(a)
+  for (i in seq_len(a)) {
+    support[i] <- sum(
+      .rowSums(sequences == i, m = n, n = m, na.rm = TRUE) > 0
+    )
+  }
+  names(support) <- alphabet
+  support / n
+}
+
 pattern_proportions <- function(patterns) {
   patterns |>
     dplyr::group_by(!!rlang::sym("length")) |>
@@ -306,4 +322,18 @@ pattern_proportions <- function(patterns) {
       .after = !!rlang::sym("count")
     ) |>
     dplyr::ungroup()
+}
+
+pattern_lift <- function(patterns, support) {
+  patterns$lift <- NA_real_
+  pattern_states <- strsplit(patterns$pattern, split = "->")
+  n <- nrow(patterns)
+  denom <- numeric(n)
+  for (i in seq_len(n)) {
+    states <- pattern_states[[i]]
+    states <- states[!grepl("\\*+", states)]
+    denom[i] <- prod(support[states])
+  }
+  patterns$lift <- patterns$support / denom
+  patterns
 }

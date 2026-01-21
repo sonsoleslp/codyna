@@ -1,8 +1,9 @@
 Package: codyna
 Title: Complex Dynamic Systems
-Version: 0.1.0
+Version: 0.2.0
 Authors@R: c(
     person("Santtu", "Tikka", email = "santtuth@gmail.com", role = c("aut", "cre")),
+    person("Sonsoles", "L\u00f3pez-Pernas", role = "aut"),
     person("Mohammed", "Saqr", role = "aut")
   )
 Description: Performs analysis of complex dynamic systems with a focus on the
