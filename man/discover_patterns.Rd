@@ -54,7 +54,7 @@ be included (default: \code{2}).}
 }
 \value{
 A \code{tibble} containing the discover patterns, counts, proportions,
-and support.
+support and lift.
 }
 \description{
 Discovering various types of patterns in sequence data.

@@ -30,7 +30,7 @@
 #' @param end \[`character(1)`]\cr Filter patterns ending with these states.
 #' @param contains \[`character(1)`]\cr Filter patterns containing these states.
 #' @return A `tibble` containing the discover patterns, counts, proportions,
-#'   and support.
+#'   support and lift.
 #' @examples
 #' # N-grams
 #' ngrams <- discover_patterns(engagement, type = "ngram")
@@ -74,9 +74,6 @@ discover_patterns <- function(data, type = "ngram", pattern, len = 2:5,
     pattern_lift(support = support)
 }
 
-#' Process discovered patterns
-#'
-#' @noRd
 process_patterns <- function(x) {
   out <- vector(mode = "list", length = length(x))
   for (i in seq_along(out)) {
@@ -116,9 +113,6 @@ process_patterns <- function(x) {
     tibble::as_tibble()
 }
 
-#' Extract n-gram patterns
-#'
-#' @noRd
 extract_ngrams <- function(sequences, alphabet, len) {
   n <- nrow(sequences)
   m <- ncol(sequences)
@@ -150,9 +144,6 @@ extract_ngrams <- function(sequences, alphabet, len) {
   ngrams
 }
 
-#' Extract gapped patterns
-#'
-#' @noRd
 extract_gapped <- function(sequences, alphabet, gap) {
   n <- nrow(sequences)
   m <- ncol(sequences)
@@ -184,9 +175,6 @@ extract_gapped <- function(sequences, alphabet, gap) {
   gapped
 }
 
-#' Extract repeated patterns
-#'
-#' @noRd
 extract_repeated <- function(sequences, alphabet, len) {
   n <- nrow(sequences)
   m <- ncol(sequences)
@@ -219,9 +207,6 @@ extract_repeated <- function(sequences, alphabet, len) {
   repeated
 }
 
-#' Search for a specific pattern
-#'
-#' @noRd
 search_pattern <- function(sequences, alphabet, pattern) {
   n <- nrow(sequences)
   m <- ncol(sequences)
@@ -267,9 +252,6 @@ search_pattern <- function(sequences, alphabet, pattern) {
   list(list(patterns = discovered, length = j))
 }
 
-#' Filter patterns based on various criteria
-#'
-#' @noRd
 filter_patterns <- function(patterns, min_support, min_count,
                             start, end, contains) {
   out <- patterns |>
