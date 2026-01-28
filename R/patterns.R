@@ -1,8 +1,9 @@
 #' Discover Sequence Patterns
 #'
-#' Discovering various types of patterns in sequence data.
+#' Discover various types of patterns in sequence data.
 #' Provides n-gram extraction, gapped pattern discovery, analysis of repeated
-#' patterns and targeted pattern search.
+#' patterns and targeted pattern search. supports comparison of pattern
+#' presence between groups.
 #'
 #' @export
 #' @param data \[`data.frame`, `matrix`, `stslist`]\cr
@@ -16,21 +17,32 @@
 #' @param pattern \[`character(1)`]\cr Specific pattern to search for as
 #'   a character string (e.g., `"A->*->B"`). If provided, `type` is ignored.
 #'   Supports wildcards: `*` (single) and `**` (multi-wildcard).
-#' @param len \[`integer()`]\cr Pattern lengths to consider for
-#'   n-grams and repeated patterns (default: `2:5`).
-#' @param gap \[`integer()`]\cr Gap sizes to consider for
-#'   gapped patterns (default: `1:3`).
+#' @param len \[`integer()`]\cr Pattern lengths to consider for n-grams and
+#'   repeated patterns (default: `2:5`).
+#' @param gap \[`integer()`]\cr Gap sizes to consider for gapped patterns
+#'   (default: `1:3`).
 #' @param min_support \[`integer(1)`]\cr Minimum support threshold, i.e., the
 #'   proportion of sequences that must contain a specific pattern for it to
 #'   be included (default: `0.01`).
-#' @param min_count \[`integer(1)`]\cr Minimum count threshold, i.e., the
-#'   numbers of times a pattern must occur across all sequences for it to
+#' @param min_freq \[`integer(1)`]\cr Minimum pattern frequency threshold, i.e.,
+#'   the numbers of times a pattern must occur across all sequences for it to
 #'   be included (default: `2`).
 #' @param start \[`character(1)`]\cr Filter patterns starting with these states.
 #' @param end \[`character(1)`]\cr Filter patterns ending with these states.
 #' @param contains \[`character(1)`]\cr Filter patterns containing these states.
-#' @return A `tibble` containing the discover patterns, counts, proportions,
-#'   support and lift.
+#' @param group \[`character(1)`, `vector()`]\cr How should the sequences
+#'   be grouped? The option `"last_obs"` assumes that the last non-missing
+#'   observation of each sequence specifies the group membership. This can also
+#'   be a column name of `data` that contains the group membership information.
+#'   Alternatively, a `vector` indicating the group assignment of each
+#'   row of the data / sequence with the same length as the number of
+#'   rows/sequences of `data`. If not provided (default), the sequences will
+#'   not not grouped. If provided, the presence/absence of each pattern is
+#'   compared between the groups using a chi-square test.
+#' @return A `tibble` containing the discovered patterns, pattern frequencies,
+#'  sequence counts, proportions,
+#'   support and lift. Group-specific measures and chi-square tests are
+#'   included if `group` is provided.
 #' @examples
 #' # N-grams
 #' ngrams <- discover_patterns(engagement, type = "ngram")
@@ -45,18 +57,19 @@
 #' custom <- discover_patterns(engagement, pattern = "Active->*")
 #'
 discover_patterns <- function(data, type = "ngram", pattern, len = 2:5,
-                              gap = 1:3, min_support = 0.01, min_count = 2,
-                              start, end, contains) {
+                              gap = 1:3, min_support = 0.01, min_freq = 2,
+                              start, end, contains, group) {
   check_missing(data)
-  data <- prepare_sequence_data(data)
+  data <- prepare_sequence_data(data, group = group)
   sequences <- data$sequences
   alphabet <- data$alphabet
+  group <- data$group
   m <- ncol(sequences)
   type <- check_match(type, c("ngram", "gapped", "repeated"))
   check_range(len, scalar = FALSE, type = "integer", min = 2L, max = m)
   check_range(gap, scalar = FALSE, type = "integer", min = 1L, max = m - 2L)
   check_range(min_support)
-  check_values(min_count)
+  check_values(min_freq)
   if (!missing(pattern)) {
     check_string(pattern)
     patterns <- search_pattern(sequences, alphabet, pattern)
@@ -68,14 +81,22 @@ discover_patterns <- function(data, type = "ngram", pattern, len = 2:5,
     )
   }
   support <- state_support(sequences, alphabet)
-  process_patterns(patterns) |>
-    filter_patterns(min_support, min_count, start, end, contains) |>
+  process_patterns(patterns, group) |>
+    filter_patterns(min_support, min_freq, start, end, contains) |>
     pattern_proportions() |>
     pattern_lift(support = support)
 }
 
-process_patterns <- function(x) {
+process_patterns <- function(x, group) {
   out <- vector(mode = "list", length = length(x))
+  groups <- NULL
+  has_group <- FALSE
+  if (!is.null(group)) {
+    groups <- unique(group)
+    idx_grp <- match(group, groups)
+    g <- length(groups)
+    has_group <- TRUE
+  }
   for (i in seq_along(out)) {
     pat_mat <- x[[i]]$patterns
     pat_len <- x[[i]]$length
@@ -86,30 +107,60 @@ process_patterns <- function(x) {
     }
     pat_tab <- table(pat_vec)
     pat_u <- names(pat_tab)
-    pat_con <- integer(length(pat_u))
-    names(pat_con) <- pat_u
+    u <- length(pat_u)
+    pat_con <- integer(u)
+    if (has_group) {
+      pat_con_grp <- matrix(0L, u, g)
+    }
     for (j in seq_len(n)) {
       pats <- pat_mat[j, ]
-      pats <- pats[nzchar(pats)]
-      pat_con[pats] <- pat_con[pats] + 1L
+      valid <- nzchar(pats)
+      pats <- pats[valid]
+      idx <- match(pats, pat_u)
+      pat_con[idx] <- pat_con[idx] + 1L
+      if (has_group) {
+        pat_con_grp[idx, idx_grp[j]] <- pat_con_grp[idx, idx_grp[j]] + 1L
+      }
     }
-    out[[i]] <- data.frame(
+    tmp <- data.frame(
       pattern = pat_u,
       length = pat_len,
-      count = c(pat_tab),
-      contained_in = pat_con,
-      support = pat_con / n
+      frequency = c(pat_tab),
+      count = pat_con
     )
+    if (has_group) {
+      colnames(pat_con_grp) <- paste0("count_", groups)
+      tmp <- cbind(tmp, as.data.frame(pat_con_grp))
+      tmp$chisq <- numeric(u)
+      tmp$p_value <- numeric(u)
+      for (j in seq_len(u)) {
+        chisq <- suppressWarnings(
+          stats::chisq.test(
+            x = pat_con_grp[j, ]#,
+            #p = pat_con_grp[j, ] / pat_con[j]
+          )
+        )
+        tmp$chisq[j] <- chisq$statistic
+        tmp$p_value[j] <- chisq$p.value
+      }
+    }
+    tmp$support <- tmp$count / n
+    out[[i]] <- tmp
   }
   proto <- data.frame(
     pattern = character(0L),
     length = integer(0L),
+    frequency = integer(0L),
     count = integer(0L),
-    contained_in = integer(0L),
     support = numeric(0L)
   )
+  if (has_group) {
+    proto_grp <- matrix(NA, nrow = 0, ncol = g)
+    colnames(proto_grp) <- paste0("count_", groups)
+    proto <- cbind(proto, as.data.frame(proto_grp))
+  }
   out <- dplyr::bind_rows(out, proto) |>
-    dplyr::arrange(dplyr::desc(!!rlang::sym("count"))) |>
+    dplyr::arrange(dplyr::desc(!!rlang::sym("frequency"))) |>
     tibble::as_tibble()
 }
 
@@ -252,11 +303,11 @@ search_pattern <- function(sequences, alphabet, pattern) {
   list(list(patterns = discovered, length = j))
 }
 
-filter_patterns <- function(patterns, min_support, min_count,
+filter_patterns <- function(patterns, min_support, min_freq,
                             start, end, contains) {
   out <- patterns |>
     dplyr::filter(!!rlang::sym("support") >= min_support) |>
-    dplyr::filter(!!rlang::sym("count") >= min_count)
+    dplyr::filter(!!rlang::sym("frequency") >= min_freq)
   if (!missing(start)) {
     is_prefix <- function(x, prefix) {
       vapply(x, function(y) any(startsWith(y, prefix)), logical(1L))
@@ -297,11 +348,11 @@ pattern_proportions <- function(patterns) {
   patterns |>
     dplyr::group_by(!!rlang::sym("length")) |>
     dplyr::mutate(
-      proportion = !!rlang::sym("count") / sum(!!rlang::sym("count"))
+      proportion = !!rlang::sym("frequency") / sum(!!rlang::sym("frequency"))
     ) |>
     dplyr::relocate(
       !!rlang::sym("proportion"),
-      .after = !!rlang::sym("count")
+      .after = !!rlang::sym("frequency")
     ) |>
     dplyr::ungroup()
 }
@@ -317,5 +368,9 @@ pattern_lift <- function(patterns, support) {
     denom[i] <- prod(support[states])
   }
   patterns$lift <- patterns$support / denom
-  patterns
+  patterns |>
+    dplyr::relocate(
+      !!rlang::sym("lift"),
+      .after = !!rlang::sym("support")
+    )
 }

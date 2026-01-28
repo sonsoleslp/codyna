@@ -31,9 +31,9 @@ test_that("patterns can be filtered based on states", {
   expect_false("A->A" %in% patterns$pattern)
 })
 
-test_that("patterns can be filtered based on count and support", {
-  patterns <- discover_patterns(mock_sequence, min_count = 3)
-  expect_true(all(patterns$count >= 3))
+test_that("patterns can be filtered based on frequency and support", {
+  patterns <- discover_patterns(mock_sequence, min_freq = 3)
+  expect_true(all(patterns$frequency >= 3))
   patterns <- discover_patterns(mock_sequence, min_support = 0.2)
   expect_true(all(patterns$support >= 0.2))
 })
@@ -41,6 +41,6 @@ test_that("patterns can be filtered based on count and support", {
 test_that("output has zero rows if no patterns are found", {
   patterns <- discover_patterns(mock_sequence, pattern = "A->******->B")
   expect_true(nrow(patterns) == 0L)
-  patterns <- discover_patterns(mock_sequence, min_count = 6)
+  patterns <- discover_patterns(mock_sequence, min_freq = 6)
   expect_true(nrow(patterns) == 0L)
 })

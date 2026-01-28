@@ -11,10 +11,11 @@ discover_patterns(
   len = 2:5,
   gap = 1:3,
   min_support = 0.01,
-  min_count = 2,
+  min_freq = 2,
   start,
   end,
-  contains
+  contains,
+  group
 )
 }
 \arguments{
@@ -32,18 +33,18 @@ Sequence data in wide format (rows are sequences, columns are time points).}
 a character string (e.g., \code{"A->*->B"}). If provided, \code{type} is ignored.
 Supports wildcards: \code{*} (single) and \verb{**} (multi-wildcard).}
 
-\item{len}{[\code{integer()}]\cr Pattern lengths to consider for
-n-grams and repeated patterns (default: \code{2:5}).}
+\item{len}{[\code{integer()}]\cr Pattern lengths to consider for n-grams and
+repeated patterns (default: \code{2:5}).}
 
-\item{gap}{[\code{integer()}]\cr Gap sizes to consider for
-gapped patterns (default: \code{1:3}).}
+\item{gap}{[\code{integer()}]\cr Gap sizes to consider for gapped patterns
+(default: \code{1:3}).}
 
 \item{min_support}{[\code{integer(1)}]\cr Minimum support threshold, i.e., the
 proportion of sequences that must contain a specific pattern for it to
 be included (default: \code{0.01}).}
 
-\item{min_count}{[\code{integer(1)}]\cr Minimum count threshold, i.e., the
-numbers of times a pattern must occur across all sequences for it to
+\item{min_freq}{[\code{integer(1)}]\cr Minimum pattern frequency threshold, i.e.,
+the numbers of times a pattern must occur across all sequences for it to
 be included (default: \code{2}).}
 
 \item{start}{[\code{character(1)}]\cr Filter patterns starting with these states.}
@@ -51,15 +52,28 @@ be included (default: \code{2}).}
 \item{end}{[\code{character(1)}]\cr Filter patterns ending with these states.}
 
 \item{contains}{[\code{character(1)}]\cr Filter patterns containing these states.}
+
+\item{group}{[\code{character(1)}, \code{vector()}]\cr How should the sequences
+be grouped? The option \code{"last_obs"} assumes that the last non-missing
+observation of each sequence specifies the group membership. This can also
+be a column name of \code{data} that contains the group membership information.
+Alternatively, a \code{vector} indicating the group assignment of each
+row of the data / sequence with the same length as the number of
+rows/sequences of \code{data}. If not provided (default), the sequences will
+not not grouped. If provided, the presence/absence of each pattern is
+compared between the groups using a chi-square test.}
 }
 \value{
-A \code{tibble} containing the discover patterns, counts, proportions,
-support and lift.
+A \code{tibble} containing the discovered patterns, pattern frequencies,
+sequence counts, proportions,
+support and lift. Group-specific measures and chi-square tests are
+included if \code{group} is provided.
 }
 \description{
-Discovering various types of patterns in sequence data.
+Discover various types of patterns in sequence data.
 Provides n-gram extraction, gapped pattern discovery, analysis of repeated
-patterns and targeted pattern search.
+patterns and targeted pattern search. supports comparison of pattern
+presence between groups.
 }
 \examples{
 # N-grams

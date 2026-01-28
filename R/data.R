@@ -83,11 +83,10 @@ convert <- function(data, cols, format = "frequency") {
   out
 }
 
-prepare_sequence_data <- function(x, alphabet, cols) {
+prepare_sequence_data <- function(x, alphabet, cols, group) {
   check_missing(x)
   stopifnot_(
     is.data.frame(x) ||
-      is.matrix(x) ||
       inherits(x, "stslist") ||
       inherits(x, "tna"),
     "Argument {.arg data} must be a {.cls data.frame}, a {.cls matrix},
@@ -103,6 +102,21 @@ prepare_sequence_data <- function(x, alphabet, cols) {
       class(sequences) <- "matrix"
       return(list(sequences = sequences, alphabet = alphabet))
     }
+    stop_("Argument {.arg data} is a {.cls tna} object with no data.")
+  }
+  group <- group %m% NULL
+  n_group <- length(group)
+  stopifnot_(
+    is.null(group) || n_group == nrow(x) || n_group == 1L,
+    "Argument {.arg group} must be either {.val last_obs}, a column name of
+     {.arg data} or a {.cls vector} with the same length as the
+     number of rows/sequences of {.arg data}."
+  )
+  if (n_group == 1L && group != "last_obs"){
+    check_cols(group, names(x))
+    tmp <- x[[group]]
+    x[[group]] <- NULL
+    group <- tmp
   }
   p <- ncol(x)
   cols <- cols %m% seq_len(p)
@@ -129,9 +143,21 @@ prepare_sequence_data <- function(x, alphabet, cols) {
       )
     )
   )
+  if (n_group == 1L && group == "last_obs") {
+    nas <- is.na(x)
+    last_obs <- max.col(!nas, ties.method = "last")
+    group <- alphabet[x[, last_obs]]
+    x[, last_obs] <- NA
+    alphabet <- setdiff(alphabet, unique(group))
+    stopifnot_(
+      all(!x %in% alphabet),
+      "Group identifiers must not be states of the sequence data."
+    )
+  }
   list(
     sequences = x,
-    alphabet = alphabet
+    alphabet = alphabet,
+    group = group
   )
 }
 
