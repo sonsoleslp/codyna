@@ -81,7 +81,8 @@ discover_patterns <- function(data, type = "ngram", pattern, len = 2:5,
     )
   }
   support <- state_support(sequences, alphabet)
-  process_patterns(patterns, group) |>
+  format_patterns(patterns) |>
+    process_patterns(group) |>
     filter_patterns(min_support, min_freq, start, end, contains) |>
     pattern_proportions() |>
     pattern_lift(support = support)
@@ -93,56 +94,42 @@ process_patterns <- function(x, group) {
   has_group <- FALSE
   if (!is.null(group)) {
     groups <- unique(group)
-    idx_grp <- match(group, groups)
+    idx_grp <- lapply(groups, function(y) which(group == y))
     g <- length(groups)
     has_group <- TRUE
   }
   for (i in seq_along(out)) {
     pat_mat <- x[[i]]$patterns
     pat_len <- x[[i]]$length
-    n <- nrow(pat_mat)
-    pat_vec <- c(pat_mat[nzchar(pat_mat)])
-    if (length(pat_vec) == 0) {
+    pat_u <- x[[i]]$unique
+    u <- length(pat_u)
+    if (u == 0) {
       next
     }
-    pat_tab <- table(pat_vec)
-    pat_u <- names(pat_tab)
-    u <- length(pat_u)
-    pat_con <- integer(u)
+    n <- nrow(pat_mat)
+    p <- ncol(pat_mat)
+    pat_count <- .colSums(pat_mat > 0, m = n, n = p)
+    pat_freq <- .colSums(pat_mat, m = n, n = p)
     if (has_group) {
-      pat_con_grp <- matrix(0L, u, g)
-    }
-    for (j in seq_len(n)) {
-      pats <- pat_mat[j, ]
-      valid <- nzchar(pats)
-      pats <- pats[valid]
-      idx <- match(pats, pat_u)
-      pat_con[idx] <- pat_con[idx] + 1L
-      if (has_group) {
-        pat_con_grp[idx, idx_grp[j]] <- pat_con_grp[idx, idx_grp[j]] + 1L
+      pat_count_grp <- matrix(0L, u, g)
+      for (j in seq_len(g)) {
+        idx <- idx_grp[[j]]
+        m <- length(idx)
+        pat_count_grp[, j] <- .colSums(pat_mat[idx, ] > 0, m = m, n = p)
       }
     }
     tmp <- data.frame(
       pattern = pat_u,
       length = pat_len,
-      frequency = c(pat_tab),
-      count = pat_con
+      frequency = pat_freq,
+      count = pat_count
     )
     if (has_group) {
-      colnames(pat_con_grp) <- paste0("count_", groups)
-      tmp <- cbind(tmp, as.data.frame(pat_con_grp))
-      tmp$chisq <- numeric(u)
-      tmp$p_value <- numeric(u)
-      for (j in seq_len(u)) {
-        chisq <- suppressWarnings(
-          stats::chisq.test(
-            x = pat_con_grp[j, ]#,
-            #p = pat_con_grp[j, ] / pat_con[j]
-          )
-        )
-        tmp$chisq[j] <- chisq$statistic
-        tmp$p_value[j] <- chisq$p.value
-      }
+      colnames(pat_count_grp) <- paste0("count_", groups)
+      tmp <- cbind(tmp, as.data.frame(pat_count_grp))
+      chisq <- chisq_test(x = pat_count_grp, count = pat_count)
+      tmp$chisq <- chisq$statistic
+      tmp$p_value <- chisq$p_value
     }
     tmp$support <- tmp$count / n
     out[[i]] <- tmp
@@ -328,6 +315,34 @@ filter_patterns <- function(patterns, min_support, min_freq,
       dplyr::filter(grepl(pat, !!rlang::sym("pattern"), perl = TRUE))
   }
   out
+}
+
+format_patterns <- function(x) {
+  for (i in seq_along(x)) {
+    pat_mat <- x[[i]]$patterns
+    n <- nrow(pat_mat)
+    p <- ncol(pat_mat)
+    pat_vec <- c(pat_mat[nzchar(pat_mat)])
+    if (length(pat_vec) == 0) {
+      x[[i]]$patterns <- matrix(0L, nrow = n, ncol = 0L)
+      x[[i]]$unique <- character(0L)
+      next
+    }
+    pat_u <- unique(pat_vec)
+    pat_out <- matrix(0L, n, length(pat_u))
+    for (j in seq_len(p)) {
+      pats <- pat_mat[, j]
+      valid <- which(nzchar(pats))
+      if (length(valid) > 0) {
+        pats <- pats[valid]
+        idx <- cbind(valid, match(pats, pat_u))
+        pat_out[idx] <- pat_out[idx] + 1L
+      }
+    }
+    x[[i]]$patterns <- pat_out
+    x[[i]]$unique <- pat_u
+  }
+  x
 }
 
 state_support <- function(sequences, alphabet) {

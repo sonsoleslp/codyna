@@ -107,6 +107,21 @@ rmsqd <- function(x) {
   sqrt(mean(diff(x)^2, na.rm = TRUE))
 }
 
+#' Vectorized goodness-of-fit chi-squared test
+#'
+#' @param x Matrix of counts.
+#' @param count Count totals.
+#' @noRd
+chisq_test <- function(x, count) {
+  n <- nrow(x)
+  p <- ncol(x)
+  prob <- rep(1.0 / p, p)
+  expected <- outer(count, prob)
+  statistic <- .rowSums((x - expected)^2 / expected, m = n, n = p)
+  p_value <- pchisq(statistic, p - 1, lower.tail = FALSE)
+  list(statistic = statistic, p_value = p_value)
+}
+
 # Functions borrowed from the `dynamite` and `tna` packages ----
 
 #' Get specific columns from data
