@@ -362,16 +362,20 @@ plot.regimes <- function(x, points = FALSE, ...) {
 #'   group for each pattern. If provided, only the proportions of the
 #'   specific group are drawn by pattern. Ignored if the original sequences
 #'   were not grouped.
+#' @param global \[`logical(1)`]\cr Should a line be added showing the global
+#'   proportion when `group` is provided? (default: `TRUE`). Also colors
+#'   the patterns according to whether the proportion is above or below
+#'   the global value.
 #' @param ... Ignored.
 #' @return A `ggplot` object.
 #' ngrams <- discover_patterns(engagement, type = "ngram")
 #' plot(ngrams)
 #'
-plot.patterns <- function(x, n = 10, group, ...) {
+plot.patterns <- function(x, n = 10, group, global = TRUE, ...) {
   ifelse_(
     missing(group) || is.null(attr(x, "groups")),
     plot_patterns_all(x = x, n = n),
-    plot_patterns_group(x = x, n = n, group = group)
+    plot_patterns_group(x = x, n = n, group = group, global = global)
   )
 }
 
@@ -387,12 +391,12 @@ plot_patterns_all <- function(x, n) {
       dplyr::select(c("pattern", count_cols)) |>
       tidyr::pivot_longer(
         cols = count_cols,
-        names_to = ".group",
+        names_to = "group",
         names_prefix = "count_",
         values_to = "count"
       ) |>
       dplyr::mutate(
-        .group = factor(!!rlang::sym(".group"), levels = rev(groups))
+        group = factor(!!rlang::sym("group"), levels = rev(groups))
       ) |>
       dplyr::group_by(!!rlang::sym("pattern")) |>
       dplyr::mutate(
@@ -403,12 +407,17 @@ plot_patterns_all <- function(x, n) {
         ggplot2::aes(
           y = stats::reorder(!!rlang::sym("pattern"), !!rlang::sym("count")),
           x = !!rlang::sym("count"),
-          fill = !!rlang::sym(".group")
+          fill = !!rlang::sym("group")
         )
       ) +
       ggplot2::geom_col() +
       ggplot2::geom_text(
-        ggplot2::aes(label = scales::percent(!!rlang::sym("prop"), 0.1)),
+        ggplot2::aes(
+          label = scales::label_percent(
+            accuracy = 0.1,
+            suffix = " %"
+          )(!!rlang::sym("prop"))
+        ),
         position = ggplot2::position_stack(vjust = 0.5),
         color = "white",
         size = 4
@@ -432,16 +441,50 @@ plot_patterns_all <- function(x, n) {
     ggplot2::labs(x = "Count", y = "")
 }
 
-plot_patterns_group <- function(x, group) {
+plot_patterns_group <- function(x, n, group, global) {
+  count_col <- paste0("count_", group)
+  global_prop <- sum(x[[count_col]]) / sum(x[["count"]])
   x |>
-    dplyr::filter(.group = group) |>
+    dplyr::select(c("pattern", "count", count_col)) |>
+    dplyr::mutate(
+      prop = !!rlang::sym(count_col) / !!rlang::sym("count"),
+      group = factor(
+        !!rlang::sym("prop") > global_prop,
+        levels = c(TRUE, FALSE)
+      )
+    ) |>
     dplyr::arrange(dplyr::desc(!!rlang::sym("prop"))) |>
     dplyr::slice_head(n = n) |>
     ggplot2::ggplot(
       ggplot2::aes(
         y = stats::reorder(!!rlang::sym("pattern"), !!rlang::sym("prop")),
-        x = !!rlang::sym("prop")
+        x = !!rlang::sym("prop"),
+        fill = onlyif(global, !!rlang::sym("group"))
       )
     ) +
-    ggplot2::geom_col()
+    ggplot2::geom_col() +
+    ggplot2::geom_text(
+      ggplot2::aes(
+        label = scales::label_percent(
+          accuracy = 0.1,
+          suffix = " %"
+        )(!!rlang::sym("prop"))
+      ),
+      position = ggplot2::position_stack(vjust = 0.5),
+      color = "white",
+      size = 4
+    ) +
+    onlyif(
+      global,
+      ggplot2::geom_vline(
+        xintercept = global_prop,
+        color = "cyan",
+        linetype = "dashed",
+        lwd = 1
+      )
+    ) +
+    ggplot2::scale_fill_manual(values = c("darkgreen", "gray25")) +
+    ggplot2::guides(fill = "none") +
+    ggplot2::theme_minimal() +
+    ggplot2::labs(x = "Proportion", y = "")
 }
