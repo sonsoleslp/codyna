@@ -350,3 +350,98 @@ plot.regimes <- function(x, points = FALSE, ...) {
     ggplot2::labs(x = "Time", y = "Value") +
     ggplot2::theme(legend.position = "bottom")
 }
+
+#' Plot Discovered Patterns
+#'
+#' @export
+#' @param x \[`patterns`]\cr Output of [discover_patterns()].
+#' @param n \[`integer(1)`]\cr Maximum number of patterns
+#'   to include in the plot.
+#' @param group \[`character(1)`]\cr Name of the group to draw the plot for.
+#'   If not provided (the default), shows the counts and proportions by
+#'   group for each pattern. If provided, only the proportions of the
+#'   specific group are drawn by pattern. Ignored if the original sequences
+#'   were not grouped.
+#' @param ... Ignored.
+#' @return A `ggplot` object.
+#' ngrams <- discover_patterns(engagement, type = "ngram")
+#' plot(ngrams)
+#'
+plot.patterns <- function(x, n = 10, group, ...) {
+  ifelse_(
+    missing(group) || is.null(attr(x, "groups")),
+    plot_patterns_all(x = x, n = n),
+    plot_patterns_group(x = x, n = n, group = group)
+  )
+}
+
+plot_patterns_all <- function(x, n) {
+  p <- NULL
+  x <- x |>
+    dplyr::arrange(dplyr::desc(!!rlang::sym("count"))) |>
+    dplyr::slice_head(n = n)
+  groups <- attr(x, "groups")
+  if (!is.null(groups)) {
+    count_cols <- paste0("count_", groups)
+    x <- x |>
+      dplyr::select(c("pattern", count_cols)) |>
+      tidyr::pivot_longer(
+        cols = count_cols,
+        names_to = ".group",
+        names_prefix = "count_",
+        values_to = "count"
+      ) |>
+      dplyr::mutate(
+        .group = factor(!!rlang::sym(".group"), levels = rev(groups))
+      ) |>
+      dplyr::group_by(!!rlang::sym("pattern")) |>
+      dplyr::mutate(
+        prop = !!rlang::sym("count") / sum(!!rlang::sym("count"))
+      )
+    p <- x |>
+      ggplot2::ggplot(
+        ggplot2::aes(
+          y = stats::reorder(!!rlang::sym("pattern"), !!rlang::sym("count")),
+          x = !!rlang::sym("count"),
+          fill = !!rlang::sym(".group")
+        )
+      ) +
+      ggplot2::geom_col() +
+      ggplot2::geom_text(
+        ggplot2::aes(label = scales::percent(!!rlang::sym("prop"), 0.1)),
+        position = ggplot2::position_stack(vjust = 0.5),
+        color = "white",
+        size = 4
+      ) +
+      ggplot2::scale_fill_discrete(
+        name = NULL,
+        guide = ggplot2::guide_legend(reverse = TRUE)
+      )
+  } else {
+    p <- x |>
+      ggplot2::ggplot(
+        ggplot2::aes(
+          y = stats::reorder(!!rlang::sym("pattern"), !!rlang::sym("count")),
+          x = !!rlang::sym("count")
+        )
+      ) +
+      ggplot2::geom_col()
+  }
+  p +
+    ggplot2::theme_minimal() +
+    ggplot2::labs(x = "Count", y = "")
+}
+
+plot_patterns_group <- function(x, group) {
+  x |>
+    dplyr::filter(.group = group) |>
+    dplyr::arrange(dplyr::desc(!!rlang::sym("prop"))) |>
+    dplyr::slice_head(n = n) |>
+    ggplot2::ggplot(
+      ggplot2::aes(
+        y = stats::reorder(!!rlang::sym("pattern"), !!rlang::sym("prop")),
+        x = !!rlang::sym("prop")
+      )
+    ) +
+    ggplot2::geom_col()
+}

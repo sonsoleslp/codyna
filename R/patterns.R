@@ -39,10 +39,20 @@
 #'   rows/sequences of `data`. If not provided (default), the sequences will
 #'   not not grouped. If provided, the presence/absence of each pattern is
 #'   compared between the groups using a chi-square test.
-#' @return A `tibble` containing the discovered patterns, pattern frequencies,
-#'  sequence counts, proportions,
-#'   support and lift. Group-specific measures and chi-square tests are
-#'   included if `group` is provided.
+#' @return An object of class `patterns` which is a `tibble` with the
+#'   following columns:
+#'
+#'   * `pattern`: the discovered patterns.
+#'   * `length`: the length of the pattern.
+#'   * `frequency`: the number of times the pattern occurs across all sequences.
+#'   * `count`: the number of sequences the pattern occurs in.
+#'   * `support`: the proportion of sequences that contain the pattern.
+#'   * `lift`: the support divided by the product of the supports of the
+#'     individual states of the pattern. For wildcards, the support is always 1.
+#'
+#' In addition, if `group` is provided, additional columns giving the counts
+#' in each group, the chi-squared test statistic values, and p-values are
+#' included.
 #' @examples
 #' # N-grams
 #' ngrams <- discover_patterns(engagement, type = "ngram")
@@ -81,11 +91,17 @@ discover_patterns <- function(data, type = "ngram", pattern, len = 2:5,
     )
   }
   support <- state_support(sequences, alphabet)
-  format_patterns(patterns) |>
+  patterns <- format_patterns(patterns)
+  patterns |>
     process_patterns(group) |>
     filter_patterns(min_support, min_freq, start, end, contains) |>
     pattern_proportions() |>
-    pattern_lift(support = support)
+    pattern_lift(support = support) |>
+    structure(
+      patterns = patterns,
+      groups = unique(group),
+      class = c("patterns", "tbl_df", "tbl", "data.frame")
+    )
 }
 
 process_patterns <- function(x, group) {

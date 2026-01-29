@@ -33,3 +33,18 @@ print.ews <- function(x, ...) {
 print.regimes <- function(x, ...) {
   NextMethod(generic = "print", object = x, ...)
 }
+
+#' Print Discovered Patterns
+#'
+#' @export
+#' @param x \[`patterns`]\cr A pattern discovery result from
+#'   [discover_patterns()].
+#' @param ... Additional arguments passed to the generic print method.
+#' @return `x` (invisibly).
+#' @examples
+#' ngrams <- discover_patterns(engagement, type = "ngram")
+#' print(ngrams)
+#'
+print.patterns <- function(x, ...) {
+  NextMethod(generic = "print", object = x, ...)
+}

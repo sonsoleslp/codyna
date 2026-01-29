@@ -64,10 +64,21 @@ not not grouped. If provided, the presence/absence of each pattern is
 compared between the groups using a chi-square test.}
 }
 \value{
-A \code{tibble} containing the discovered patterns, pattern frequencies,
-sequence counts, proportions,
-support and lift. Group-specific measures and chi-square tests are
-included if \code{group} is provided.
+An object of class \code{patterns} which is a \code{tibble} with the
+following columns:
+\itemize{
+\item \code{pattern}: the discovered patterns.
+\item \code{length}: the length of the pattern.
+\item \code{frequency}: the number of times the pattern occurs across all sequences.
+\item \code{count}: the number of sequences the pattern occurs in.
+\item \code{support}: the proportion of sequences that contain the pattern.
+\item \code{lift}: the support divided by the product of the supports of the
+individual states of the pattern. For wildcards, the support is always 1.
+}
+
+In addition, if \code{group} is provided, additional columns giving the counts
+in each group, the chi-squared test statistic values, and p-values are
+included.
 }
 \description{
 Discover various types of patterns in sequence data.
