@@ -16,6 +16,7 @@ mock_ts <- stats::arima.sim(
 
 mock_sequence_num <- c(A = 1, B = 2, C = 3)[as.matrix(mock_sequence)]
 dim(mock_sequence_num) <- dim(mock_sequence)
+colnames(mock_sequence_num) <- paste0("T", 1:6)
 
 mock_tna <- structure(
   list(

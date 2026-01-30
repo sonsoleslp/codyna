@@ -1,10 +1,7 @@
 #' Compute Sequence Indices for Sequence Data
 #'
 #' @export
-#' @param data \[`data.frame`, `matrix`, `stslist`]\cr
-#'   Sequence data in wide format (rows are sequences, columns are time points).
-#' @param cols \[`expression`]\cr A tidy selection of columns that should
-#'   be considered as sequence data. By default, all columns are used.
+#' @inheritParams convert
 #' @param favorable \[`character()`\]\cr Names of states that should be
 #'   considered as favorable states.
 #' @param omega \[`numeric(1)`]\cr Omega parameter value used to compute
@@ -13,8 +10,11 @@
 #' @examples
 #' sequence_indices(engagement)
 #'
-sequence_indices <- function(data, cols, favorable, omega = 1) {
-  data <- prepare_sequence_data(data)
+sequence_indices <- function(data, cols = tidyselect::everything(), id,
+                             favorable, omega = 1) {
+  cols <- get_cols(rlang::enquo(cols), data)
+  id <- get_cols(rlang::enquo(id), data)
+  data <- prepare_sequence_data(data, cols, id)
   sequence_indices_(data, favorable, omega)
 }
 

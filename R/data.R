@@ -8,6 +8,8 @@
 #'   Sequence data in wide format (rows are sequences, columns are time points).
 #' @param cols \[`expression`]\cr A tidy selection of columns that should
 #'   be considered as sequence data. By default, all columns are used.
+#' @param id \[`expression`]\cr A tidy selection of column names that
+#'   uniquely identify each observation (optional).
 #' @param format \[`character(1)`]\cr The format to convert into:
 #'
 #'   * `"frequency"`: Counts of each state per sequence.
@@ -23,9 +25,12 @@
 #' convert(engagement, format = "edgelist")
 #' convert(engagement, format = "reverse")
 #'
-convert <- function(data, cols, format = "frequency") {
+convert <- function(data, cols = tidyselect::everything(), id,
+                    format = "frequency") {
   check_missing(data)
-  data <- prepare_sequence_data(data, cols)
+  cols <- get_cols(rlang::enquo(cols), data)
+  id <- get_cols(rlang::enquo(id), data)
+  data <- prepare_sequence_data(data, cols, id)
   format <- check_match(format, c("frequency", "onehot", "edgelist", "reverse"))
   alphabet <- data$alphabet
   sequences <- as.data.frame(data$sequences)
@@ -83,71 +88,62 @@ convert <- function(data, cols, format = "frequency") {
   out
 }
 
-prepare_sequence_data <- function(x, alphabet, cols, group) {
-  check_missing(x)
+prepare_sequence_data <- function(data, cols, id, group) {
+  check_missing(data)
   stopifnot_(
-    is.data.frame(x) ||
-      inherits(x, "stslist") ||
-      inherits(x, "tna"),
+    is.data.frame(data) ||
+      inherits(data, "matrix") ||
+      inherits(data, "stslist") ||
+      inherits(data, "tna") ||
+      inherits(data, "group_tna"),
     "Argument {.arg data} must be a {.cls data.frame}, a {.cls matrix},
-     an {.cls stslist} object, or a {.cls tna} object."
+     an {.cls stslist} object, a {.cls tna} object, or a {.cls group_tna}
+    object."
   )
-  if (inherits(x, "tna")) {
-    if (!is.null(x$data)) {
-      sequences <- x$data
-      alphabet <- attr(x$data, "alphabet")
-      attr(sequences, "labels") <- NULL
-      attr(sequences, "colors") <- NULL
-      attr(sequences, "alphabet") <- NULL
-      class(sequences) <- "matrix"
-      return(list(sequences = sequences, alphabet = alphabet))
-    }
-    stop_("Argument {.arg data} is a {.cls tna} object with no data.")
-  }
+  parsed <- data_parsers[[class(data)[1L]]](data, cols)
+  data <- parsed$data
+  alphabet <- parsed$alphabet
+  id <- id %m% NULL
   group <- group %m% NULL
+  group <- ifelse_(is.null(parsed$group), group, parsed$group)
   n_group <- length(group)
   stopifnot_(
-    is.null(group) || n_group == nrow(x) || n_group == 1L,
+    is.null(group) || n_group == nrow(data) || n_group == 1L,
     "Argument {.arg group} must be either {.val last_obs}, a column name of
      {.arg data} or a {.cls vector} with the same length as the
      number of rows/sequences of {.arg data}."
   )
-  if (n_group == 1L && group != "last_obs"){
-    check_cols(group, names(x))
-    tmp <- x[[group]]
-    x[[group]] <- NULL
-    group <- tmp
-  }
-  p <- ncol(x)
-  cols <- cols %m% seq_len(p)
-  cols <- get_cols(rlang::enquo(cols), x)
-  if (inherits(x, "stslist")) {
-    alphabet <- attr(x, "alphabet")
-    x <- as.data.frame(x)
-  } else if (is.data.frame(x)) {
-    if (missing(alphabet)) {
-      vals <- sort(unique(unlist(x[, cols])))
-      alphabet <- vals[!is.na(vals) & nchar(vals) > 0]
-    }
-    x[, cols] <- as.data.frame(
-      lapply(x[, cols], function(y) factor(y, levels = alphabet))
+  if (n_group == 1L && group != "last_obs") {
+    stopifnot_(
+      group %in% names(data),
+      "The column {.val {group}} was not found in the data."
     )
+    tmp <- data[[group]]
+    data[[group]] <- NULL
+    group <- tmp
+    cols <- setdiff(cols, group)
   }
-  x <- as.matrix(
-    as.data.frame(
+  if (!is.null(id)) {
+    cols <- setdiff(cols, id)
+    id <- data[, id, drop = FALSE] |>
+      as.data.frame() |>
+      interaction(drop = TRUE)
+  }
+  if (is.data.frame(data)) {
+    data <- data[, cols] |>
       lapply(
-        x[, cols],
         function(y) {
           as.integer(replace(y, which(!y %in% alphabet), NA))
         }
-      )
-    )
-  )
+      ) |>
+      as.data.frame() |>
+      as.matrix()
+  }
   if (n_group == 1L && group == "last_obs") {
-    nas <- is.na(x)
+    nas <- is.na(data)
     last_obs <- max.col(!nas, ties.method = "last")
-    group <- alphabet[x[, last_obs]]
-    x[, last_obs] <- NA
+    group <- alphabet[data[, last_obs]]
+    data[, last_obs] <- NA
     alphabet <- setdiff(alphabet, unique(group))
     stopifnot_(
       all(!x %in% alphabet),
@@ -155,8 +151,9 @@ prepare_sequence_data <- function(x, alphabet, cols, group) {
     )
   }
   list(
-    sequences = x,
+    sequences = data,
     alphabet = alphabet,
+    id = id,
     group = group
   )
 }
@@ -166,7 +163,63 @@ prepare_timeseries_data <- function(x) {
   time <- seq_along(values)
   if (stats::is.ts(x)) {
     tsp <- attr(x, "tsp")
-    time <- seq(tsp[1], tsp[2], tsp[3])
+    time <- seq(tsp[1L], tsp[2L], tsp[3L])
   }
   list(values = values, time = time)
 }
+
+
+# Data parsers ------------------------------------------------------------
+
+
+parse_tna <- function(x, ...) {
+  stopifnot_(
+    !is.null(x$data),
+    "Argument {.arg data} is a {.cls tna} object with no data."
+  )
+  alphabet <- attr(x$data, "alphabet")
+  out <- c(x$data)
+  dim(out) <- dim(x$data)
+  colnames(out) <- colnames(x$data)
+  list(data = out, alphabet = alphabet)
+}
+
+parse_matrix <- function(x, cols) {
+  stopifnot_(
+    !is.null(colnames(x)),
+    "Argument {.arg data} must have column names when a {.cls matrix} is
+     provided."
+  )
+  parse_data.frame(as.data.frame(x), cols)
+}
+
+parse_group_tna <- function(x, ...) {
+  cols <- attr(x, "cols")
+  group <- attr(x, "groups")
+  alphabet <- attr(x[[1L]]$data, "alphabet")
+  data <- dplyr::bind_rows(
+    lapply(x, function(y) as.data.frame(y$data))
+  )
+  group <- attr(x, "levels")[unlist(groups)]
+  list(data = data, alphabet = alphabet, group = group)
+}
+
+parse_stslist <- function(x, ...) {
+  list(data = as.data.frame(x), alphabet = attr(x, "alphabet"))
+}
+
+parse_data.frame <- function(x, cols) {
+  vals <- as.character(sort(unique(unlist(x[, cols]))))
+  alphabet <- vals[!is.na(vals) & nchar(vals) > 0]
+  x[, cols] <- lapply(x[, cols], function(y) factor(y, levels = alphabet)) |>
+    as.data.frame()
+  list(data = x, alphabet = alphabet)
+}
+
+data_parsers <- list(
+  tna = parse_tna,
+  group_tna = parse_group_tna,
+  matrix = parse_matrix,
+  data.frame = parse_data.frame,
+  stslist = parse_stslist
+)

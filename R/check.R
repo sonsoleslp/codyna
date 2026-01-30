@@ -13,30 +13,6 @@ check_class <- function(x, what) {
   )
 }
 
-#' Check that columns can be found in the data
-#'
-#' @param cols A `character` vector of column names.
-#' @param data_names Column names of a data frame.
-#' @noRd
-check_cols <- function(cols, data_names) {
-  cols_obs <- cols %in% data_names
-  cols_mis <- cols[!cols_obs]
-  if (length(cols_mis) > 0) {
-    if (length(cols) == 1) {
-      stop_("The column {.val {cols_mis}} was not found in the data.")
-    } else {
-      stop_(
-        c(
-          "The columns {.val {cols}} must exist in the data.",
-          `x` = "The following columns were
-          not found in the data: {.val {cols_mis}}."
-        )
-      )
-    }
-  }
-}
-
-
 #' Check That `x` is a Logical Value
 #'
 #' @param x An \R object expected to be a `logical` value.

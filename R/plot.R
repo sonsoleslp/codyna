@@ -357,6 +357,9 @@ plot.regimes <- function(x, points = FALSE, ...) {
 #' @param x \[`patterns`]\cr Output of [discover_patterns()].
 #' @param n \[`integer(1)`]\cr Maximum number of patterns
 #'   to include in the plot.
+#' @param prop \[`logical(1)`]\cr Should group-specific count proportions be
+#'   displayed in the plot? The default is `TRUE`. Ignored if the original
+#'   sequences were not grouped.
 #' @param group \[`character(1)`]\cr Name of the group to draw the plot for.
 #'   If not provided (the default), shows the counts and proportions by
 #'   group for each pattern. If provided, only the proportions of the
@@ -371,21 +374,30 @@ plot.regimes <- function(x, points = FALSE, ...) {
 #' ngrams <- discover_patterns(engagement, type = "ngram")
 #' plot(ngrams)
 #'
-plot.patterns <- function(x, n = 10, group, global = TRUE, ...) {
+plot.patterns <- function(x, n = 10, prop = TRUE, group, global = TRUE, ...) {
   ifelse_(
-    missing(group) || is.null(attr(x, "groups")),
-    plot_patterns_all(x = x, n = n),
+    missing(group) || is.null(attr(x, "group")),
+    plot_patterns_all(x = x, n = n, prop = prop),
     plot_patterns_group(x = x, n = n, group = group, global = global)
   )
 }
 
-plot_patterns_all <- function(x, n) {
+plot_patterns_all <- function(x, n, prop) {
   p <- NULL
   x <- x |>
     dplyr::arrange(dplyr::desc(!!rlang::sym("count"))) |>
     dplyr::slice_head(n = n)
-  groups <- attr(x, "groups")
-  if (!is.null(groups)) {
+  if (is.null(attr(x, "group")) || !prop) {
+    p <- x |>
+      ggplot2::ggplot(
+        ggplot2::aes(
+          y = stats::reorder(!!rlang::sym("pattern"), !!rlang::sym("count")),
+          x = !!rlang::sym("count")
+        )
+      ) +
+      ggplot2::geom_col()
+  } else {
+    groups <- unique(attr(x, "group"))
     count_cols <- paste0("count_", groups)
     x <- x |>
       dplyr::select(c("pattern", count_cols)) |>
@@ -426,15 +438,6 @@ plot_patterns_all <- function(x, n) {
         name = NULL,
         guide = ggplot2::guide_legend(reverse = TRUE)
       )
-  } else {
-    p <- x |>
-      ggplot2::ggplot(
-        ggplot2::aes(
-          y = stats::reorder(!!rlang::sym("pattern"), !!rlang::sym("count")),
-          x = !!rlang::sym("count")
-        )
-      ) +
-      ggplot2::geom_col()
   }
   p +
     ggplot2::theme_minimal() +
@@ -443,7 +446,7 @@ plot_patterns_all <- function(x, n) {
 
 plot_patterns_group <- function(x, n, group, global) {
   count_col <- paste0("count_", group)
-  global_prop <- sum(x[[count_col]]) / sum(x[["count"]])
+  global_prop <- mean(attr(x, "group") == group)
   x |>
     dplyr::select(c("pattern", "count", count_col)) |>
     dplyr::mutate(
@@ -463,6 +466,15 @@ plot_patterns_group <- function(x, n, group, global) {
       )
     ) +
     ggplot2::geom_col() +
+    onlyif(
+      global,
+      ggplot2::geom_vline(
+        xintercept = global_prop,
+        color = "cyan",
+        linetype = "dashed",
+        lwd = 1
+      )
+    ) +
     ggplot2::geom_text(
       ggplot2::aes(
         label = scales::label_percent(
@@ -473,15 +485,6 @@ plot_patterns_group <- function(x, n, group, global) {
       position = ggplot2::position_stack(vjust = 0.5),
       color = "white",
       size = 4
-    ) +
-    onlyif(
-      global,
-      ggplot2::geom_vline(
-        xintercept = global_prop,
-        color = "cyan",
-        linetype = "dashed",
-        lwd = 1
-      )
     ) +
     ggplot2::scale_fill_manual(values = c("darkgreen", "gray25")) +
     ggplot2::guides(fill = "none") +

@@ -6,8 +6,17 @@
 #' presence between groups.
 #'
 #' @export
-#' @param data \[`data.frame`, `matrix`, `stslist`]\cr
-#'   Sequence data in wide format (rows are sequences, columns are time points).
+#' @inheritParams convert
+#' @param group \[`character(1)`, `vector()`]\cr How should the sequences
+#'   be grouped for outcome modeling? The option `"last_obs"` assumes that the
+#'   last non-missing observation of each sequence specifies the outcome group
+#'   membership. This can also be a column name of `data` that contains the
+#'   group membership information. Alternatively, a `vector` indicating the
+#'   group assignment of each row of the data / sequence with the same length
+#'   as the number of rows/sequences of `data`. If not provided (default), the
+#'   sequences will not not grouped. If provided, the presence/absence of each
+#'   pattern is compared between the groups using a goodness-of-fit chi-square
+#'   test.
 #' @param type \[`character(1)`]\cr Type of pattern analysis:
 #'
 #'   * `"ngram"`: Extract contiguous n-grams.
@@ -30,15 +39,6 @@
 #' @param start \[`character(1)`]\cr Filter patterns starting with these states.
 #' @param end \[`character(1)`]\cr Filter patterns ending with these states.
 #' @param contains \[`character(1)`]\cr Filter patterns containing these states.
-#' @param group \[`character(1)`, `vector()`]\cr How should the sequences
-#'   be grouped? The option `"last_obs"` assumes that the last non-missing
-#'   observation of each sequence specifies the group membership. This can also
-#'   be a column name of `data` that contains the group membership information.
-#'   Alternatively, a `vector` indicating the group assignment of each
-#'   row of the data / sequence with the same length as the number of
-#'   rows/sequences of `data`. If not provided (default), the sequences will
-#'   not not grouped. If provided, the presence/absence of each pattern is
-#'   compared between the groups using a chi-square test.
 #' @return An object of class `patterns` which is a `tibble` with the
 #'   following columns:
 #'
@@ -66,14 +66,18 @@
 #' # Custom pattern with a wildcard state
 #' custom <- discover_patterns(engagement, pattern = "Active->*")
 #'
-discover_patterns <- function(data, type = "ngram", pattern, len = 2:5,
-                              gap = 1:3, min_support = 0.01, min_freq = 2,
-                              start, end, contains, group) {
+discover_patterns <- function(data, cols = tidyselect::everything(),
+                              id, group, type = "ngram", pattern,
+                              len = 2:5, gap = 1:3, min_support = 0.01,
+                              min_freq = 2, start, end, contains) {
   check_missing(data)
-  data <- prepare_sequence_data(data, group = group)
+  cols <- get_cols(rlang::enquo(cols), data)
+  id <- get_cols(rlang::enquo(id), data)
+  data <- prepare_sequence_data(data, cols, id, group)
   sequences <- data$sequences
   alphabet <- data$alphabet
   group <- data$group
+  id <- data$id
   m <- ncol(sequences)
   type <- check_match(type, c("ngram", "gapped", "repeated"))
   check_range(len, scalar = FALSE, type = "integer", min = 2L, max = m)
@@ -99,7 +103,8 @@ discover_patterns <- function(data, type = "ngram", pattern, len = 2:5,
     pattern_lift(support = support) |>
     structure(
       patterns = patterns,
-      groups = unique(group),
+      id = id,
+      group = group,
       class = c("patterns", "tbl_df", "tbl", "data.frame")
     )
 }
