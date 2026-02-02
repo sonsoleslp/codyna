@@ -122,16 +122,14 @@ chisq_test <- function(x, count) {
   list(statistic = statistic, p_value = p_value)
 }
 
-# Functions borrowed from the `dynamite` and `tna` packages ----
-
 #' Get specific columns from data
 #'
-#' @param expr An `expression` for the columns to select
-#' @param data A `data.frame` to select the columns from
+#' @param expr An `expression` for the columns to select.
+#' @param data A `data.frame` to select the columns from.
 #' @noRd
 get_cols <- function(expr, data) {
-  if (rlang::quo_is_missing(expr)) {
-    return(rlang::missing_arg())
+  if (rlang::quo_is_null(expr)) {
+    return(NULL)
   }
   if (rlang::quo_is_symbolic(expr) && !rlang::quo_is_call(expr, "!!")) {
     pos <- tidyselect::eval_select(expr = expr, data = data)
@@ -150,6 +148,8 @@ get_cols <- function(expr, data) {
     }
   }
 }
+
+# Functions borrowed from the `dynamite` and `tna` packages ----
 
 #' Shorthand for `try(., silent = TRUE)`
 #'

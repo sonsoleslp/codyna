@@ -1,3 +1,6 @@
+# Discovery ---------------------------------------------------------------
+
+
 #' Discover Sequence Patterns
 #'
 #' Discover various types of patterns in sequence data.
@@ -8,15 +11,12 @@
 #' @export
 #' @inheritParams convert
 #' @param group \[`character(1)`, `vector()`]\cr How should the sequences
-#'   be grouped for outcome modeling? The option `"last_obs"` assumes that the
-#'   last non-missing observation of each sequence specifies the outcome group
-#'   membership. This can also be a column name of `data` that contains the
-#'   group membership information. Alternatively, a `vector` indicating the
-#'   group assignment of each row of the data / sequence with the same length
-#'   as the number of rows/sequences of `data`. If not provided (default), the
-#'   sequences will not not grouped. If provided, the presence/absence of each
-#'   pattern is compared between the groups using a goodness-of-fit chi-square
-#'   test.
+#'   be grouped? The option `"last_obs"` assumes that the last non-missing
+#'   observation of each sequence specifies the group membership. Alternatively,
+#'   a column name of `data` or a `vector` with the same length as the number
+#'   of rows. If not provided (default), the sequences will not not grouped.
+#'   When provided, the presence/absence of each pattern is compared between
+#'   the groups using a goodness-of-fit chi-square test.
 #' @param type \[`character(1)`]\cr Type of pattern analysis:
 #'
 #'   * `"ngram"`: Extract contiguous n-grams.
@@ -52,7 +52,8 @@
 #'
 #' In addition, if `group` is provided, additional columns giving the counts
 #' in each group, the chi-squared test statistic values, and p-values are
-#' included.
+#' included. If `group` has two classes, the degree of separation is also
+#' provided.
 #' @examples
 #' # N-grams
 #' ngrams <- discover_patterns(engagement, type = "ngram")
@@ -66,21 +67,50 @@
 #' # Custom pattern with a wildcard state
 #' custom <- discover_patterns(engagement, pattern = "Active->*")
 #'
+#'
 discover_patterns <- function(data, cols = tidyselect::everything(),
-                              id, group, type = "ngram", pattern,
+                              group, type = "ngram", pattern,
                               len = 2:5, gap = 1:3, min_support = 0.01,
                               min_freq = 2, start, end, contains) {
   check_missing(data)
+  data <- extract_data(data)
+  group <- extract_group(data, group)
   cols <- get_cols(rlang::enquo(cols), data)
-  id <- get_cols(rlang::enquo(id), data)
-  data <- prepare_sequence_data(data, cols, id, group)
-  sequences <- data$sequences
-  alphabet <- data$alphabet
-  group <- data$group
-  id <- data$id
+  last <- FALSE
+  if (is.character(group) && length(group) == 1L) {
+    if (group[1L] == "last_obs") {
+      last <- TRUE
+    } else {
+      cols <- setdiff(cols, group)
+    }
+  }
+  data <- prepare_sequence_data(data, cols)
+  if (last) {
+    data <- extract_last(data$sequences, data$alphabet)
+    group <- data$group
+  }
+  discover_patterns_(
+    sequences = data$sequences,
+    alphabet = data$alphabet,
+    group = group,
+    type = type,
+    pattern = pattern,
+    len = len,
+    gap = gap,
+    min_support = min_support,
+    min_freq = min_freq,
+    start = start,
+    end = end,
+    contains = contains
+  )
+}
+
+discover_patterns_ <- function(sequences, alphabet, group, type, pattern, len,
+                               gap, min_support, min_freq, start, end,
+                               contains) {
   m <- ncol(sequences)
   type <- check_match(type, c("ngram", "gapped", "repeated"))
-  check_range(len, scalar = FALSE, type = "integer", min = 2L, max = m)
+  check_range(len, scalar = FALSE, type = "integer", min = 1L, max = m)
   check_range(gap, scalar = FALSE, type = "integer", min = 1L, max = m - 2L)
   check_range(min_support)
   check_values(min_freq)
@@ -103,7 +133,6 @@ discover_patterns <- function(data, cols = tidyselect::everything(),
     pattern_lift(support = support) |>
     structure(
       patterns = patterns,
-      id = id,
       group = group,
       class = c("patterns", "tbl_df", "tbl", "data.frame")
     )
@@ -115,6 +144,7 @@ process_patterns <- function(x, group) {
   has_group <- FALSE
   if (!is.null(group)) {
     groups <- unique(group)
+    num_grp <- as.integer(factor(group)) - 1L
     idx_grp <- lapply(groups, function(y) which(group == y))
     g <- length(groups)
     has_group <- TRUE
@@ -138,6 +168,14 @@ process_patterns <- function(x, group) {
         m <- length(idx)
         pat_count_grp[, j] <- .colSums(pat_mat[idx, ] > 0, m = m, n = p)
       }
+      pat_sep <- NULL
+      if (g == 2L) {
+        pat_sep <- .colSums(
+          1L * (pat_mat > 0) == num_grp,
+          m = n,
+          n = p
+        )
+      }
     }
     tmp <- data.frame(
       pattern = pat_u,
@@ -151,6 +189,9 @@ process_patterns <- function(x, group) {
       chisq <- chisq_test(x = pat_count_grp, count = pat_count)
       tmp$chisq <- chisq$statistic
       tmp$p_value <- chisq$p_value
+      if (g == 2L) {
+        tmp$separation <- 2 * abs(0.5 - pat_sep / n)
+      }
     }
     tmp$support <- tmp$count / n
     out[[i]] <- tmp
@@ -163,7 +204,7 @@ process_patterns <- function(x, group) {
     support = numeric(0L)
   )
   if (has_group) {
-    proto_grp <- matrix(NA, nrow = 0, ncol = g)
+    proto_grp <- matrix(NA, nrow = 0L, ncol = g)
     colnames(proto_grp) <- paste0("count_", groups)
     proto <- cbind(proto, as.data.frame(proto_grp))
   }
@@ -189,7 +230,7 @@ extract_ngrams <- function(sequences, alphabet, len) {
       valid <- .rowSums(pattern_mis, m = n, n = j) == 0L
       if (any(valid)) {
         subseq <- do.call(
-          paste,
+          base::paste,
           c(
             as.data.frame(pattern[valid, , drop = FALSE]),
             sep = "->"
@@ -220,7 +261,7 @@ extract_gapped <- function(sequences, alphabet, gap) {
       valid <- .rowSums(pattern_mis, m = n, n = 2L) == 0L
       if (any(valid)) {
         subseq <- do.call(
-          paste,
+          base::paste,
           c(
             as.data.frame(pattern[valid, , drop = FALSE]),
             sep = paste0("->", paste0(rep("*", j), collapse = ""), "->")
@@ -252,7 +293,7 @@ extract_repeated <- function(sequences, alphabet, len) {
         apply(sequences[, idx], 1, function(x) n_unique(x) == 1L)
       if (any(valid)) {
         subseq <- do.call(
-          paste,
+          base::paste,
           c(
             as.data.frame(pattern[valid, , drop = FALSE]),
             sep = "->"
@@ -299,7 +340,7 @@ search_pattern <- function(sequences, alphabet, pattern) {
       apply(pattern, 1, function(x) all(x[pos] == states))
     if (any(valid)) {
       subseq <- do.call(
-        paste,
+        base::paste,
         c(
           as.data.frame(pattern[valid, , drop = FALSE]),
           sep = "->"
@@ -409,4 +450,174 @@ pattern_lift <- function(patterns, support) {
       !!rlang::sym("lift"),
       .after = !!rlang::sym("support")
     )
+}
+
+# Modeling ----------------------------------------------------------------
+
+
+#' Analyze Pattern-Outcome Relationships
+#'
+#' Fit a (mixed) logistic regression model to the data using sequence patterns
+#' as predictors. The patterns are first determined using [discover_patterns()]
+#' and used as predictors as specified by the user (either count or presence).
+#' The user can further select the maximum number of patterns to use and how
+#' to prioritize the patterns (separation, frequency, proportion of sequences,
+#' etc.). Additional covariates and random effects can also be included in the
+#' model. The logistic model is fitted using [stats::glm()] or by
+#' [lme4::glmer()] in the case of a mixed model.
+#'
+#' @export
+#' @inheritParams convert
+#' @param group \[`expression`]\cr An optional tidy selection of columns that
+#'   define the grouping factors. If provided, group-specific parameters
+#'   can be specified via `re_formula`. The default value `NULL` disables
+#'   grouping and a fixed-effects model is fitted instead.
+#' @param outcome \[`character(1)`]\cr Outcome variable specification. The
+#'   option `"last_obs"` (default) assumes that the last non-missing observation
+#'   of each sequence specifies the outcome. This can also be a column name of
+#'   `data` that contains the outcome variable information.
+#' @param n \[`integer(1)`]\cr Maximum number of patterns to include in the
+#'   model as covariates. The default is `10`.
+#' @param type \[`character(1)`]\cr Specifies how the patterns are included
+#'   as predictors. The option `"count"` uses the number of times a specific
+#'   pattern occurs in a sequence, whereas option `"presence"` (the default)
+#'   defines a binary predictors that attains the value `1` if the pattern is
+#'   present in the sequence and `0` otherwise.
+#' @param priority \[`character(1)`]\cr Priority of pattern inclusion in the
+#'   model. The available options are:
+#'
+#'   * `"separation"`: Best separation of the `outcome` classes. For
+#'     `type = "count"`, the chi-square statistic is used. For
+#'     `type = "presence"`, the proportion of 1-1 and 0-0 matches between
+#'     the pattern and the `outcome` is used.
+#'   * `"frequency"`: Most frequent patterns.
+#'   * `"support"`: Most common patterns.
+#'
+#' @param formula \[`formula`]\cr Formula specification for the fixed effects
+#'   of the non-pattern covariates. The default is `~ 1`, adding no covariates.
+#' @param re_formula \[`formula`]\cr Formula specification of the random
+#'   effects when `group` is provided. By default, a random intercept is added
+#'   for each grouping variable in `group`.
+#' @param ... Additional arguments passed to [discover_patterns()] and the
+#'   model-fitting function ([stats::glm()] or [lme4::glmer()]).
+#' @return Either a `glm` or a `glmerMod` object depending on whether
+#'   random effects were included.
+#' @examples
+#' # TODO
+#' 1 + 1
+#'
+analyze_outcome <- function(data, cols = tidyselect::everything(),
+                            group = NULL, outcome = "last_obs",
+                            n = 10, type = "presence",
+                            priority = "separation", formula = ~1,
+                            re_formula, ...) {
+  check_missing(data)
+  check_values(n, strict = TRUE)
+  type <- check_match(type, c("presence", "count"))
+  priority <- check_match(priority, c("separation", "frequency", "support"))
+  data <- extract_data(data)
+  group <- get_cols(rlang::enquo(group), data)
+  cols <- get_cols(rlang::enquo(cols), data) |>
+    setdiff(c(group, outcome))
+  mixed <- !is.null(group)
+  seqdata <- prepare_sequence_data(data, cols)
+  if (identical(outcome, "last_obs")) {
+    seqdata <- extract_last(seqdata$sequences, seqdata$alphabet)
+    outcome <- seqdata$group
+    data$.outcome <- factor(outcome)
+    response <- ".outcome"
+  } else {
+    outcome <- as.character(outcome)
+    stopifnot_(
+      length(outcome) == 1L && outcome %in% names(data),
+      "Argument {.arg outcome} must be a column name of {.arg data}."
+    )
+    response <- outcome
+    data[[outcome]] <- factor(data[[outcome]])
+    outcome <- data[[outcome]]
+  }
+  stopifnot_(
+    n_unique(outcome) == 2L,
+    "Argument {.arg outcome} must specify an outcome variable with two classes."
+  )
+  dots <- list(...)
+  dp_args_names <- c(
+    "type", "pattern", "len",
+    "gap", "min_support", "min_freq",
+    "start", "end", "contains"
+  )
+  dots_names <- names(dots)
+  fit_args <- dots[setdiff(dots_names, dp_args_names)]
+  dp_args <- dots[intersect(dots_names, dp_args_names)]
+  dp_args$sequences <- seqdata$sequences
+  dp_args$alphabet <- seqdata$alphabet
+  dp_args$group <- outcome
+  dp_args$type <- dp_args$type %||% "ngram"
+  dp_args$len <- dp_args$len %||% 1:2
+  dp_args$gap <- dp_args$gap %||% 1
+  dp_args$min_support <- dp_args$min_support %||% 0.05
+  dp_args$min_freq <- dp_args$min_freq %||% 10L
+  disc <- do.call(
+    getFromNamespace("discover_patterns_", "codyna"),
+    dp_args
+  ) |>
+    dplyr::arrange(dplyr::desc(!!rlang::sym(priority))) |>
+    dplyr::slice_head(n = n)
+  filtered <- disc$pattern
+  patterns <- attr(disc, "patterns") |>
+    lapply(
+      function(x) {
+        out <- x$patterns
+        colnames(out) <- x$unique
+        out[, x$unique %in% filtered]
+      }
+    ) |>
+    do.call(what = base::cbind) |>
+    as.data.frame()
+  if (type == "presence") {
+    patterns <- patterns |>
+      dplyr::mutate(
+        dplyr::across(
+          tidyselect::everything(),
+          function(x) 0L + 1L * (x > 0)
+        )
+      )
+  }
+  pat_formula <- paste0("`", filtered, "`") |>
+    paste0(collapse = " + ") |>
+    paste("~ ", ... = _) |>
+    stats::as.formula()
+  intercept <- attr(terms(formula), "intercept") == 1
+  terms <- union(
+    attr(stats::terms(formula), "term.labels"),
+    attr(stats::terms(pat_formula), "term.labels")
+  )
+  formula <- stats::reformulate(
+    termlabels = terms,
+    response = response,
+    intercept = intercept
+  )
+  fit_fun <- stats::glm
+  if (mixed) {
+    re_formula <- re_formula %m%
+      paste0("(1 | ", group, ")", collapse = " + ") |>
+      paste("~ . + ", ... = _) |>
+      stats::as.formula()
+    formula <- stats::update(formula, re_formula)
+    fit_fun <- lme4::glmer
+  }
+  fit_args$formula <- formula
+  fit_args$family <- stats::binomial()
+  fit_args$data <- cbind(data, patterns)
+  fit <- try_(do.call(fit_fun, fit_args))
+  stopifnot_(
+    !inherits(fit, "try-error"),
+    "Model fitting failed"
+  )
+  if (mixed) {
+    fit@call$data <- NULL
+  } else {
+    fit$call <- NULL
+  }
+  fit
 }

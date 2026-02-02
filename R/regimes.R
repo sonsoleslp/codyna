@@ -82,7 +82,7 @@ detect_regimes <- function(data, method = "smart", sensitivity = "medium",
     min_change
   )
   result <- do.call(
-    what = paste0("detect_", method),
+    what = getFromNamespace(paste0("detect_", method), "codyna"),
     args = list(values = values, time = time, params = params)
   )
   orig <- data.frame(
@@ -206,10 +206,13 @@ detect_all <- function(values, time, params) {
   n <- length(values)
   args <- list(values = values, time = time, params = params)
   for (method in methods) {
-    results[[method]] <- do.call(what = paste0("detect_", method), args = args)
+    results[[method]] <- do.call(
+      what = getFromNamespace(paste0("detect_", method), "codyna"),
+      args = args
+    )
   }
   changes <- lapply(results, "[[", "change")
-  vote_matrix <- do.call(cbind, changes)
+  vote_matrix <- do.call(base::cbind, changes)
   ensemble_vote_threshold_prop <- 0.3
   vote_prop <- (params$sensitivity == "medium") * 0.3 +
     (params$sensitivity == "high") * 0.15 +

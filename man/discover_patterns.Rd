@@ -6,6 +6,8 @@
 \usage{
 discover_patterns(
   data,
+  cols = tidyselect::everything(),
+  group,
   type = "ngram",
   pattern,
   len = 2:5,
@@ -14,13 +16,24 @@ discover_patterns(
   min_freq = 2,
   start,
   end,
-  contains,
-  group
+  contains
 )
 }
 \arguments{
-\item{data}{[\code{data.frame}, \code{matrix}, \code{stslist}]\cr
-Sequence data in wide format (rows are sequences, columns are time points).}
+\item{data}{[\code{data.frame}]\cr Sequence data in wide format
+(rows are sequences, columns are time points). The input should be
+coercible to a \code{data.frame} object.}
+
+\item{cols}{[\code{expression}]\cr A tidy selection of columns that should
+be considered as sequence data. By default, all columns are used.}
+
+\item{group}{[\code{character(1)}, \code{vector()}]\cr How should the sequences
+be grouped? The option \code{"last_obs"} assumes that the last non-missing
+observation of each sequence specifies the group membership. Alternatively,
+a column name of \code{data} or a \code{vector} with the same length as the number
+of rows. If not provided (default), the sequences will not not grouped.
+When provided, the presence/absence of each pattern is compared between
+the groups using a goodness-of-fit chi-square test.}
 
 \item{type}{[\code{character(1)}]\cr Type of pattern analysis:
 \itemize{
@@ -52,16 +65,6 @@ be included (default: \code{2}).}
 \item{end}{[\code{character(1)}]\cr Filter patterns ending with these states.}
 
 \item{contains}{[\code{character(1)}]\cr Filter patterns containing these states.}
-
-\item{group}{[\code{character(1)}, \code{vector()}]\cr How should the sequences
-be grouped? The option \code{"last_obs"} assumes that the last non-missing
-observation of each sequence specifies the group membership. This can also
-be a column name of \code{data} that contains the group membership information.
-Alternatively, a \code{vector} indicating the group assignment of each
-row of the data / sequence with the same length as the number of
-rows/sequences of \code{data}. If not provided (default), the sequences will
-not not grouped. If provided, the presence/absence of each pattern is
-compared between the groups using a chi-square test.}
 }
 \value{
 An object of class \code{patterns} which is a \code{tibble} with the
@@ -78,7 +81,8 @@ individual states of the pattern. For wildcards, the support is always 1.
 
 In addition, if \code{group} is provided, additional columns giving the counts
 in each group, the chi-squared test statistic values, and p-values are
-included.
+included. If \code{group} has two classes, the degree of separation is also
+provided.
 }
 \description{
 Discover various types of patterns in sequence data.
@@ -98,5 +102,6 @@ repeated <- discover_patterns(engagement, type = "repeated")
 
 # Custom pattern with a wildcard state
 custom <- discover_patterns(engagement, pattern = "Active->*")
+
 
 }

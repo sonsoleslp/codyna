@@ -10,11 +10,10 @@
 #' @examples
 #' sequence_indices(engagement)
 #'
-sequence_indices <- function(data, cols = tidyselect::everything(), id,
+sequence_indices <- function(data, cols = tidyselect::everything(),
                              favorable, omega = 1) {
   cols <- get_cols(rlang::enquo(cols), data)
-  id <- get_cols(rlang::enquo(id), data)
-  data <- prepare_sequence_data(data, cols, id)
+  data <- prepare_sequence_data(data, cols)
   sequence_indices_(data, favorable, omega)
 }
 
