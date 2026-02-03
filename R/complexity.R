@@ -4,15 +4,18 @@
 #' time series data.
 #'
 #' @export
-#' @param data \[`ts`, `numeric()`]\cr Univariate time series data.
-#' @param measures \[`character()`]\cr A vector of measures to calculate.
-#'   See 'Details' for more information on the available measures.
-#' @param window \[`integer(1)`]\cr A positive `integer` specifying the rolling
-#'   window size. Must be at least `2` (default: `7`).
-#' @param align \[`character(1)`]\cr Alignment of the window. The available
-#'   options are: `"center"` (default), `"right"`, and `"left"`. The calculated
-#'   measure is assigned to the center, rightmost, or leftmost point of the
-#'   window, respectively.
+#' @param data \[`ts`, `numeric()`]\cr
+#'   Univariate time series data.
+#' @param measures \[`character()`]\cr
+#'   A vector of measures to calculate. See 'Details' for more information
+#'   on the available measures.
+#' @param window \[`integer(1)`: `7L`]\cr
+#'   A positive `integer` specifying the rolling window size.
+#'   Must be at least `2`.
+#' @param align \[`character(1)`: `"center"`]\cr
+#'   Alignment of the window. The available options are: `"center"`, `"right"`,
+#'   and `"left"`. The calculated measure is assigned to the center, rightmost,
+#'   or leftmost point of the window, respectively.
 #' @return A `tibble` with the time index, the original time-series data,
 #'   and the calculated measures.
 #' @details The following measures can be calculated:

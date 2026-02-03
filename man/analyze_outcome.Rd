@@ -7,60 +7,111 @@
 analyze_outcome(
   data,
   cols = tidyselect::everything(),
-  id = NULL,
-  group = "last_obs",
+  group = NULL,
+  outcome = "last_obs",
+  reference,
   n = 10,
-  type = "presence",
-  priority = "separation",
+  freq = FALSE,
+  priority = "chisq",
+  desc = TRUE,
   formula = ~1,
   re_formula,
+  mixed = TRUE,
+  type = "ngram",
+  len = 1:2,
+  gap = 1,
+  min_support = 0.01,
+  min_freq = 5,
+  start,
+  end,
+  contain,
   ...
 )
 }
 \arguments{
-\item{data}{[\code{data.frame}]\cr Sequence data in wide format
-(rows are sequences, columns are time points). The input should be
-coercible to a \code{data.frame} object.}
+\item{data}{[\code{data.frame}]\cr
+Sequence data in wide format (rows are sequences, columns are time points).
+The input should be coercible to a \code{data.frame} object.}
 
-\item{cols}{[\code{expression}]\cr A tidy selection of columns that should
-be considered as sequence data. By default, all columns are used.}
+\item{cols}{[\code{expression}: \code{tidyselect::everything()}]\cr
+A tidy selection of columns that should be considered as sequence data.
+By default, all columns are used.}
 
-\item{id}{[\code{expression}]\cr An optional tidy selection of columns that
-define the hierarchy of the data. If provided, random effects
-can be specified via \code{re_formula}. The default value \code{NULL} corresponds
-to a fixed-effects model.}
+\item{group}{[\code{expression}]\cr
+An optional tidy selection of columns that  define the grouping factors.
+If provided, group-specific random effects can be specified via
+\code{re_formula}. The default value \code{NULL} disables grouping and a
+fixed-effects model is fitted instead.}
 
-\item{group}{[\code{character(1)}]\cr Outcome group specification. The
-option \code{"last_obs"} (default) assumes that the last non-missing observation
-of each sequence specifies the outcome groups. This can also be a column
-name of \code{data} that contains the outcome group variable information.}
+\item{outcome}{[\code{character(1)}, \code{vector()}]\cr
+Outcome variable specification. The option \code{"last_obs"} assumes that
+the last non-missing observation of each sequence specifies the
+outcome. Alternatively, a column name of \code{data} or a \code{vector} with the
+same length as the number of rows of \code{data}.}
+
+\item{reference}{[\code{character(1)}]\cr
+The name of the \code{outcome} class to be taken as the reference.
+The probability of the other class is modeled.
+If not provided, uses the first class in lexicographic order.}
 
 \item{n}{[\code{integer(1)}]\cr Maximum number of patterns to include in the
 model as covariates. The default is \code{10}.}
 
-\item{type}{[\code{character(1)}]\cr Specifies how the patterns are included
-as predictors. The option \code{"count"} uses the number of times a specific
-pattern occurs in a sequence, whereas option \code{"presence"} (the default)
-defines a binary predictors that attains the value \code{1} if the pattern is
-present in the sequence and \code{0} otherwise.}
+\item{freq}{[\code{logical()}]\cr Should the pattern frequency be used as
+a predictor?. If \code{FALSE} (the default), instead defines a binary predictor
+that attains the value \code{1} if the pattern is present in the sequence and
+\code{0} otherwise.}
 
-\item{priority}{[\code{character(1)}]\cr Priority of pattern inclusion in the
-model. The available options are:
-\itemize{
-\item \code{"separation"}: Best separation of the \code{outcome} classes. For
-\code{type = "count"}, the chi-square statistic is used. For
-\code{type = "presence"}, the proportion of 1-1 and 0-0 matches between
-the pattern and the \code{outcome} is used.
-\item \code{"frequency"}: Most frequent patterns.
-\item \code{"support"}: Most common patterns.
-}}
+\item{priority}{[\code{character()}: \code{"chisq"}]\cr
+Criteria giving the priority of pattern inclusion in the model.
+Multiple criteria can be selected simultaneously. The available
+options are the column names of the return object of \code{\link[=discover_patterns]{discover_patterns()}},
+excluding \code{pattern}.}
+
+\item{desc}{[\code{logical()}, \code{TRUE}]\cr
+A logical vector of the same length as \code{priority} that defines which
+criteria should be evaluated in descending order of magnitude.}
 
 \item{formula}{[\code{formula}]\cr Formula specification for the fixed effects
 of the non-pattern covariates. The default is \code{~ 1}, adding no covariates.}
 
 \item{re_formula}{[\code{formula}]\cr Formula specification of the random
-effects when \code{id} is provided. By default, a random intercept is added
-for each variable.}
+effects when \code{group} is provided. By default, a random intercept is added
+for each grouping variable in \code{group}.}
+
+\item{mixed}{[\code{logical(1)}]\cr Should a mixed model be fitted when \code{group}
+is provided? (default: \code{TRUE})}
+
+\item{type}{[\code{character(1)}: \code{"ngram"}]\cr
+The pattern type to analyze:
+\itemize{
+\item \code{"ngram"}: Extract contiguous n-grams.
+\item \code{"gapped"}: Discover patterns with gaps/wildcards.
+\item \code{"repeated"}: Detect repeated occurrences of the same state.
+}}
+
+\item{len}{[\code{integer()}: \code{1:2}]\cr
+Pattern lengths to consider for n-grams and repeated patterns.}
+
+\item{gap}{[\code{integer()}: \code{1}]\cr
+Gap sizes to consider for gapped patterns.}
+
+\item{min_support}{[\code{integer(1)}: \code{0.01}]\cr
+Minimum support threshold, i.e., the proportion of sequences that must
+contain a specific pattern for the pattern to be included.}
+
+\item{min_freq}{[\code{integer(1)}: \code{2L}]\cr
+Minimum pattern frequency threshold, i.e., the number of times a pattern
+must occur across all sequences for it to be included.}
+
+\item{start}{[\code{character()}]\cr
+Filter patterns starting with these states.}
+
+\item{end}{[\code{character()}]\cr
+Filter patterns ending with these states.}
+
+\item{contain}{[\code{character()}]\cr
+Filter patterns containing these states.}
 
 \item{...}{Additional arguments passed to \code{\link[=discover_patterns]{discover_patterns()}} and the
 model-fitting function (\code{\link[stats:glm]{stats::glm()}} or \code{\link[lme4:glmer]{lme4::glmer()}}).}
@@ -72,10 +123,10 @@ random effects were included.
 \description{
 Fit a (mixed) logistic regression model to the data using sequence patterns
 as predictors. The patterns are first determined using \code{\link[=discover_patterns]{discover_patterns()}}
-and used as predictors as specified by the user (either count or presence).
-The user can further select the maximum number of patterns to use and how
-to prioritize the patterns (separation, frequency, proportion of sequences,
-etc.). Additional covariates and random effects can also be included in the
+and used as predictors as specified by the user (either frequency or
+presence). The user can further select the maximum number of patterns to use
+and how to prioritize the patterns (frequency, support, lift, etc.).
+Additional covariates and random effects can also be included in the
 model. The logistic model is fitted using \code{\link[stats:glm]{stats::glm()}} or by
 \code{\link[lme4:glmer]{lme4::glmer()}} in the case of a mixed model.
 }

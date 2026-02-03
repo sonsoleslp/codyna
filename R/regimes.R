@@ -5,9 +5,10 @@
 #' threshold analysis, gradient changes, and entropy analysis.
 #'
 #' @export
-#' @param data \[`ts`, `numeric()`]\cr Univariate time series data.
-#' @param method \[`character(1)`]\cr Detection method.
-#'   The available options are:
+#' @param data \[`ts`, `numeric()`]\cr
+#'   Univariate time series data.
+#' @param method \[`character(1)`: `"smart"`]\cr
+#'   Regime detection method. The available options are:
 #'
 #'   * `"cumulative_peaks"`: Detects cumulative complexity peaks using Z-tests.
 #'   * `"changepoint"`: Change point detection (multi-window mean-shift test).
@@ -20,22 +21,22 @@
 #'   * `"all"`: Applies all individual methods listed above and uses
 #'     ensemble voting.
 #'
-#' @param sensitivity \[`character(1)`]\cr Detection sensitivity level.
-#'   The available options are: `"low"`, `"medium"`, `"high"`.
-#'   The default is `"medium"`. This affects thresholds and window sizes within
+#' @param sensitivity \[`character(1)`: `"medium"`]\cr
+#'   Detection sensitivity level. The available options are: `"low"`,
+#'   `"medium"`, and `"high"`. Controls thresholds and window sizes within
 #'   the detection methods.
-#' @param min_change \[`integer(1)`]\cr Minimum number of observations between
-#'   changes. If missing (default), the value is determined automatically
-#'   (typically 10% of observations, minimum of 10).
-#' @param window \[`integer(1)`]\cr base window size for rolling calculations.
-#'   This is further adjusted by `sensitivity`. The default is `10`.
-#' @param peak \[`numeric(1)`]\cr Base z-score threshold for individual peak
-#'   detection with the `"cumulative_peaks"` method.
-#'   Adjusted by `sensitivity`. The default is `2.0`.
-#' @param cumulative \[`numeric(1)`]\cr A value between 0 and 1 that defines
-#'   the base proportion threshold for identifying cumulative peak regions.
-#'   Adjusted by `sensitivity`. The default is `0.6`.
-#'
+#' @param min_change \[`integer(1)`]\cr
+#'   Minimum number of observations between changes. If not provided, the value
+#'   is determined automatically (typically 10% of observations, minimum of 10).
+#' @param window \[`integer(1)`: `10L`]\cr
+#'   Base window size for rolling calculations. This is further adjusted by
+#'   `sensitivity`
+#' @param peak \[`numeric(1)`: `2.0`]\cr
+#'   Base z-score threshold for individual peak detection with the
+#'   `"cumulative_peaks"` method. Adjusted by `sensitivity`.
+#' @param cumulative \[`numeric(1)`: `0.6`]\cr
+#'   A value between 0 and 1 that defines the base proportion threshold for
+#'   identifying cumulative peak regions. Adjusted by `sensitivity`.
 #' @return An object of class `regimes` which is a `tibble` containing
 #'   the following columns:
 #'
@@ -61,7 +62,7 @@
 #' )
 #'
 detect_regimes <- function(data, method = "smart", sensitivity = "medium",
-                           min_change, window = 10, peak = 2.0,
+                           min_change, window = 10L, peak = 2.0,
                            cumulative = 0.6) {
   data <- prepare_timeseries_data(data)
   values <- data$values

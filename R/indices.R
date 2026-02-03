@@ -2,16 +2,16 @@
 #'
 #' @export
 #' @inheritParams convert
-#' @param favorable \[`character()`\]\cr Names of states that should be
-#'   considered as favorable states.
-#' @param omega \[`numeric(1)`]\cr Omega parameter value used to compute
-#'   the integrative potential.
+#' @param favorable \[`character()`]\cr
+#'   Names of states that should be considered favorable.
+#' @param omega \[`numeric(1)`: `1.0`]\cr
+#'   Omega parameter value used to compute the integrative potential.
 #' @return A `tibble` containing the index values.
 #' @examples
 #' sequence_indices(engagement)
 #'
 sequence_indices <- function(data, cols = tidyselect::everything(),
-                             favorable, omega = 1) {
+                             favorable, omega = 1.0) {
   cols <- get_cols(rlang::enquo(cols), data)
   data <- prepare_sequence_data(data, cols)
   sequence_indices_(data, favorable, omega)

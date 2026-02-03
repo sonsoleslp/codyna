@@ -7,8 +7,8 @@
 \method{print}{patterns}(x, ...)
 }
 \arguments{
-\item{x}{[\code{patterns}]\cr A pattern discovery result from
-\code{\link[=discover_patterns]{discover_patterns()}}.}
+\item{x}{[\code{patterns}]\cr
+Pattern discovery result from \code{\link[=discover_patterns]{discover_patterns()}}.}
 
 \item{...}{Additional arguments passed to the generic print method.}
 }

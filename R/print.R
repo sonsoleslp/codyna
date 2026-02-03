@@ -1,7 +1,8 @@
 #' Print EWS Detection Results
 #'
 #' @export
-#' @param x \[`ews`]\cr An EWS detection result from [detect_warnings()].
+#' @param x \[`ews`]\cr
+#'   EWS detection result from [detect_warnings()].
 #' @param ... Additional arguments passed to the generic print method.
 #' @return `x` (invisibly).
 #' @examples
@@ -17,7 +18,8 @@ print.ews <- function(x, ...) {
 #' Print Regime Detection Results
 #'
 #' @export
-#' @param x \[`regimes`]\cr A regime detection result from [detect_regimes()].
+#' @param x \[`regimes`]\cr
+#'   Regime detection result from [detect_regimes()].
 #' @param ... Additional arguments passed to the generic print method.
 #' @return `x` (invisibly).
 #' @examples
@@ -37,8 +39,8 @@ print.regimes <- function(x, ...) {
 #' Print Discovered Patterns
 #'
 #' @export
-#' @param x \[`patterns`]\cr A pattern discovery result from
-#'   [discover_patterns()].
+#' @param x \[`patterns`]\cr
+#'   Pattern discovery result from [discover_patterns()].
 #' @param ... Additional arguments passed to the generic print method.
 #' @return `x` (invisibly).
 #' @examples

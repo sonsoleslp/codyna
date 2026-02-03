@@ -20,14 +20,15 @@ detect_warnings(
 )
 }
 \arguments{
-\item{data}{[\code{ts}, \code{numeric()}]\cr Univariate time series data.}
+\item{data}{[\code{ts}, \code{numeric()}]\cr
+Univariate time series data.}
 
-\item{method}{[\code{character(1)}]\cr Name of the analysis method.
-Either \code{"rolling"} or \code{"expanding"} for rolling window and expanding
-window, respectively.}
+\item{method}{[\code{character(1)}: \code{"rolling"}]\cr
+Name of the analysis method. Either \code{"rolling"} or \code{"expanding"} for
+rolling window and expanding window, respectively.}
 
-\item{metrics}{[\code{character(1)}]\cr Names of the EWS metrics to compute.
-The default is \code{"all"} computing all metrics. The available options are:
+\item{metrics}{[\code{character(1)}: \code{"all"}]\cr
+Names of the EWS metrics to compute. The available options are:
 \itemize{
 \item \code{"ar1"}: The autoregressive coefficient of an AR1 model.
 \item \code{"sd"}: Standard deviation.
@@ -38,20 +39,20 @@ The default is \code{"all"} computing all metrics. The available options are:
 \item \code{"all"}: All of the above.
 }}
 
-\item{window}{[\code{numeric(1)}]\cr Window size as a proportion of the total
-series length (default \code{0.5}).}
+\item{window}{[\code{numeric(1)}: \code{0.5}]\cr
+Window size as a proportion of the total time series length.}
 
-\item{burnin}{[\code{numeric(1)}]\cr Burn-in period as a proportion of the total
-series length (default \code{0.1}).}
+\item{burnin}{[\code{numeric(1)}: 0.1]\cr
+Burn-in period as a proportion of the total time series length.}
 
-\item{demean}{[\code{logical(1)}]\cr Should the time series be demeaned before
-analysis?  If \code{TRUE} (the default), the \code{"ar1"} metric will be based on an
-AR1 model where the mean of the observations is first subtracted.
-See \code{\link[stats:ar.ols]{stats::ar.ols()}} for details.}
+\item{demean}{[\code{logical(1)}: \code{TRUE}]\cr
+Should the time series be demeaned before analysis? If \code{TRUE}, the \code{"ar1"}
+metric will be based on an AR1 model where the mean of the observations is
+first subtracted. See \code{\link[stats:ar.ols]{stats::ar.ols()}} for details.}
 
-\item{detrend}{[\code{character(1)}]\cr Name of the detrending method to
-apply to the time series data before computing the metrics.
-The default is \code{"none"} for no detrending. The available options are:
+\item{detrend}{[\code{character(1)}: \code{"none"}]\cr
+Name of the detrending method to apply to the time series data before
+computing the metrics. The available options are:
 \itemize{
 \item \code{"gaussian"}: Estimates a smooth curve via kernel-based regression
 using \code{\link[stats:ksmooth]{stats::ksmooth()}} with a Gaussian kernel which is then subtracted
@@ -62,15 +63,15 @@ using \code{\link[stats:loess]{stats::loess()}} which is then subtracted from th
 the residuals for computing the metrics.
 \item \code{"first-diff"}: Uses the differences between the time series and its
 first-order lagged values.
-\item \code{"none"}: Use the original time series data.
+\item \code{"none"}: Use the original time series data (no detrending).
 }}
 
-\item{threshold}{[\code{numeric(1)}]\cr The z-score threshold value for the
-expanding window method. The default is \code{2.0}.}
+\item{threshold}{[\code{numeric(1)}: \code{2.0}]\cr
+The z-score threshold value for the expanding window method.}
 
-\item{consecutive}{[\code{integer(1)}]\cr The number of times the \code{threshold}
-has to be crossed consecutively to be counted as a detection. The default
-is \code{2}.}
+\item{consecutive}{[\code{integer(1)}: \code{2L}]\cr
+The number of times the \code{threshold} has to be crossed consecutively to be
+counted as a detection.}
 
 \item{bandwidth}{See \code{\link[stats:ksmooth]{stats::ksmooth()}}.}
 
@@ -82,7 +83,10 @@ is \code{2}.}
 An object of class \code{ews} containing the EWS results as a \code{tibble}.
 }
 \description{
-Detect Early Warning Signals in a Time Series
+Eearly warning signal (EWS) detection for time series data. Both rolling
+window and expanding window approaches are supported. Includes various
+methods for detrending the data before analysis. For visualizing the
+results, see \code{\link[=plot.ews]{plot.ews()}}.
 }
 \examples{
 set.seed(123)

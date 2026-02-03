@@ -7,7 +7,8 @@
 \method{plot}{ews}(x, ...)
 }
 \arguments{
-\item{x}{[\code{ews}]\cr Output of \code{\link[=detect_warnings]{detect_warnings()}}.}
+\item{x}{[\code{ews}]\cr
+Output of \code{\link[=detect_warnings]{detect_warnings()}}.}
 
 \item{...}{Ignored.}
 }

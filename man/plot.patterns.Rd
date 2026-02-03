@@ -4,28 +4,29 @@
 \alias{plot.patterns}
 \title{Plot Discovered Patterns}
 \usage{
-\method{plot}{patterns}(x, n = 10, prop = TRUE, group, global = TRUE, ...)
+\method{plot}{patterns}(x, n = 10L, prop = TRUE, group, global = TRUE, ...)
 }
 \arguments{
-\item{x}{[\code{patterns}]\cr Output of \code{\link[=discover_patterns]{discover_patterns()}}.}
+\item{x}{[\code{patterns}]\cr
+Output of \code{\link[=discover_patterns]{discover_patterns()}}.}
 
-\item{n}{[\code{integer(1)}]\cr Maximum number of patterns
-to include in the plot.}
+\item{n}{[\code{integer(1)}: \code{10L}]\cr
+Maximum number of patterns to include in the plot.}
 
-\item{prop}{[\code{logical(1)}]\cr Should group-specific count proportions be
-displayed in the plot? The default is \code{TRUE}. Ignored if the original
-sequences were not grouped.}
+\item{prop}{[\code{logical(1)}: \code{TRUE}]\cr
+Should outcome-specific count proportions be displayed in the plot?
+The default is \code{TRUE}. Ignored if \code{outcome} was not originally specified.}
 
-\item{group}{[\code{character(1)}]\cr Name of the group to draw the plot for.
-If not provided (the default), shows the counts and proportions by
-group for each pattern. If provided, only the proportions of the
-specific group are drawn by pattern. Ignored if the original sequences
-were not grouped.}
+\item{group}{[\code{character(1)}]\cr
+Name of the outcome class to draw the plot for. If not provided, shows the
+counts and proportions by outcome class for each pattern. If provided,
+only the proportions of the specific class are drawn by pattern.
+Ignored if \code{outcome} was not originally specified.}
 
-\item{global}{[\code{logical(1)}]\cr Should a line be added showing the global
-proportion when \code{group} is provided? (default: \code{TRUE}). Also colors
-the patterns according to whether the proportion is above or below
-the global value.}
+\item{global}{[\code{logical(1)}: \code{TRUE}]\cr
+Should a line be added showing the global proportion when \code{group} is
+provided? Also colors the patterns according to whether the proportion is
+above or below the global value.}
 
 \item{...}{Ignored.}
 }

@@ -1,12 +1,18 @@
 #' Detect Early Warning Signals in a Time Series
 #'
+#' Eearly warning signal (EWS) detection for time series data. Both rolling
+#' window and expanding window approaches are supported. Includes various
+#' methods for detrending the data before analysis. For visualizing the
+#' results, see [plot.ews()].
+#'
 #' @export
-#' @param data \[`ts`, `numeric()`]\cr Univariate time series data.
-#' @param method \[`character(1)`]\cr Name of the analysis method.
-#'   Either `"rolling"` or `"expanding"` for rolling window and expanding
-#'   window, respectively.
-#' @param metrics \[`character(1)`]\cr Names of the EWS metrics to compute.
-#'   The default is `"all"` computing all metrics. The available options are:
+#' @param data \[`ts`, `numeric()`]\cr
+#'   Univariate time series data.
+#' @param method \[`character(1)`: `"rolling"`]\cr
+#'   Name of the analysis method. Either `"rolling"` or `"expanding"` for
+#'   rolling window and expanding window, respectively.
+#' @param metrics \[`character(1)`: `"all"`]\cr
+#'   Names of the EWS metrics to compute. The available options are:
 #'
 #'   * `"ar1"`: The autoregressive coefficient of an AR1 model.
 #'   * `"sd"`: Standard deviation.
@@ -16,17 +22,17 @@
 #'   * `"rr"`: Return rate (`1 - ar1`).
 #'   * `"all"`: All of the above.
 #'
-#' @param window \[`numeric(1)`]\cr Window size as a proportion of the total
-#'   series length (default `0.5`).
-#' @param burnin \[`numeric(1)`]\cr Burn-in period as a proportion of the total
-#'   series length (default `0.1`).
-#' @param demean \[`logical(1)`]\cr Should the time series be demeaned before
-#'   analysis?  If `TRUE` (the default), the `"ar1"` metric will be based on an
-#'   AR1 model where the mean of the observations is first subtracted.
-#'   See [stats::ar.ols()] for details.
-#' @param detrend \[`character(1)`]\cr Name of the detrending method to
-#'   apply to the time series data before computing the metrics.
-#'   The default is `"none"` for no detrending. The available options are:
+#' @param window \[`numeric(1)`: `0.5`]\cr
+#'   Window size as a proportion of the total time series length.
+#' @param burnin \[`numeric(1)`: 0.1]\cr
+#'   Burn-in period as a proportion of the total time series length.
+#' @param demean \[`logical(1)`: `TRUE`]\cr
+#'   Should the time series be demeaned before analysis? If `TRUE`, the `"ar1"`
+#'   metric will be based on an AR1 model where the mean of the observations is
+#'   first subtracted. See [stats::ar.ols()] for details.
+#' @param detrend \[`character(1)`: `"none"`]\cr
+#'   Name of the detrending method to apply to the time series data before
+#'   computing the metrics. The available options are:
 #'
 #'   * `"gaussian"`: Estimates a smooth curve via kernel-based regression
 #'     using [stats::ksmooth()] with a Gaussian kernel which is then subtracted
@@ -37,13 +43,13 @@
 #'     the residuals for computing the metrics.
 #'   * `"first-diff"`: Uses the differences between the time series and its
 #'     first-order lagged values.
-#'   * `"none"`: Use the original time series data.
+#'   * `"none"`: Use the original time series data (no detrending).
 #'
-#' @param threshold \[`numeric(1)`]\cr The z-score threshold value for the
-#'   expanding window method. The default is `2.0`.
-#' @param consecutive \[`integer(1)`]\cr The number of times the `threshold`
-#'   has to be crossed consecutively to be counted as a detection. The default
-#'   is `2`.
+#' @param threshold \[`numeric(1)`: `2.0`]\cr
+#'   The z-score threshold value for the expanding window method.
+#' @param consecutive \[`integer(1)`: `2L`]\cr
+#'   The number of times the `threshold` has to be crossed consecutively to be
+#'   counted as a detection.
 #' @param bandwidth See [stats::ksmooth()].
 #' @param span See [stats::loess()].
 #' @param degree See [stats::loess()].

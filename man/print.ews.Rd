@@ -7,7 +7,8 @@
 \method{print}{ews}(x, ...)
 }
 \arguments{
-\item{x}{[\code{ews}]\cr An EWS detection result from \code{\link[=detect_warnings]{detect_warnings()}}.}
+\item{x}{[\code{ews}]\cr
+EWS detection result from \code{\link[=detect_warnings]{detect_warnings()}}.}
 
 \item{...}{Additional arguments passed to the generic print method.}
 }

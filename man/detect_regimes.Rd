@@ -9,16 +9,17 @@ detect_regimes(
   method = "smart",
   sensitivity = "medium",
   min_change,
-  window = 10,
+  window = 10L,
   peak = 2,
   cumulative = 0.6
 )
 }
 \arguments{
-\item{data}{[\code{ts}, \code{numeric()}]\cr Univariate time series data.}
+\item{data}{[\code{ts}, \code{numeric()}]\cr
+Univariate time series data.}
 
-\item{method}{[\code{character(1)}]\cr Detection method.
-The available options are:
+\item{method}{[\code{character(1)}: \code{"smart"}]\cr
+Regime detection method. The available options are:
 \itemize{
 \item \code{"cumulative_peaks"}: Detects cumulative complexity peaks using Z-tests.
 \item \code{"changepoint"}: Change point detection (multi-window mean-shift test).
@@ -32,25 +33,26 @@ complexity series, calculated in rolling windows.
 ensemble voting.
 }}
 
-\item{sensitivity}{[\code{character(1)}]\cr Detection sensitivity level.
-The available options are: \code{"low"}, \code{"medium"}, \code{"high"}.
-The default is \code{"medium"}. This affects thresholds and window sizes within
+\item{sensitivity}{[\code{character(1)}: \code{"medium"}]\cr
+Detection sensitivity level. The available options are: \code{"low"},
+\code{"medium"}, and \code{"high"}. Controls thresholds and window sizes within
 the detection methods.}
 
-\item{min_change}{[\code{integer(1)}]\cr Minimum number of observations between
-changes. If missing (default), the value is determined automatically
-(typically 10\% of observations, minimum of 10).}
+\item{min_change}{[\code{integer(1)}]\cr
+Minimum number of observations between changes. If not provided, the value
+is determined automatically (typically 10\% of observations, minimum of 10).}
 
-\item{window}{[\code{integer(1)}]\cr base window size for rolling calculations.
-This is further adjusted by \code{sensitivity}. The default is \code{10}.}
+\item{window}{[\code{integer(1)}: \code{10L}]\cr
+Base window size for rolling calculations. This is further adjusted by
+\code{sensitivity}}
 
-\item{peak}{[\code{numeric(1)}]\cr Base z-score threshold for individual peak
-detection with the \code{"cumulative_peaks"} method.
-Adjusted by \code{sensitivity}. The default is \code{2.0}.}
+\item{peak}{[\code{numeric(1)}: \code{2.0}]\cr
+Base z-score threshold for individual peak detection with the
+\code{"cumulative_peaks"} method. Adjusted by \code{sensitivity}.}
 
-\item{cumulative}{[\code{numeric(1)}]\cr A value between 0 and 1 that defines
-the base proportion threshold for identifying cumulative peak regions.
-Adjusted by \code{sensitivity}. The default is \code{0.6}.}
+\item{cumulative}{[\code{numeric(1)}: \code{0.6}]\cr
+A value between 0 and 1 that defines the base proportion threshold for
+identifying cumulative peak regions. Adjusted by \code{sensitivity}.}
 }
 \value{
 An object of class \code{regimes} which is a \code{tibble} containing

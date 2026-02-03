@@ -7,7 +7,8 @@
 \method{print}{regimes}(x, ...)
 }
 \arguments{
-\item{x}{[\code{regimes}]\cr A regime detection result from \code{\link[=detect_regimes]{detect_regimes()}}.}
+\item{x}{[\code{regimes}]\cr
+Regime detection result from \code{\link[=detect_regimes]{detect_regimes()}}.}
 
 \item{...}{Additional arguments passed to the generic print method.}
 }

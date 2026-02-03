@@ -7,88 +7,95 @@
 discover_patterns(
   data,
   cols = tidyselect::everything(),
-  group,
+  outcome,
   type = "ngram",
   pattern,
   len = 2:5,
   gap = 1:3,
-  min_support = 0.01,
   min_freq = 2,
+  min_support = 0.01,
   start,
   end,
-  contains
+  contain
 )
 }
 \arguments{
-\item{data}{[\code{data.frame}]\cr Sequence data in wide format
-(rows are sequences, columns are time points). The input should be
-coercible to a \code{data.frame} object.}
+\item{data}{[\code{data.frame}]\cr
+Sequence data in wide format (rows are sequences, columns are time points).
+The input should be coercible to a \code{data.frame} object.}
 
-\item{cols}{[\code{expression}]\cr A tidy selection of columns that should
-be considered as sequence data. By default, all columns are used.}
+\item{cols}{[\code{expression}: \code{tidyselect::everything()}]\cr
+A tidy selection of columns that should be considered as sequence data.
+By default, all columns are used.}
 
-\item{group}{[\code{character(1)}, \code{vector()}]\cr How should the sequences
-be grouped? The option \code{"last_obs"} assumes that the last non-missing
-observation of each sequence specifies the group membership. Alternatively,
-a column name of \code{data} or a \code{vector} with the same length as the number
-of rows. If not provided (default), the sequences will not not grouped.
-When provided, the presence/absence of each pattern is compared between
-the groups using a goodness-of-fit chi-square test.}
+\item{outcome}{[\code{character(1)}, \code{vector()}]\cr
+Optional outcome variable specification. The option \code{"last_obs"} assumes
+that the last non-missing observation of each sequence specifies the
+outcome. Alternatively, a column name of \code{data} or a \code{vector} with the
+same length as the number of rows of \code{data}. When provided, the
+presence/absence of each pattern is compared between the outcome groups
+using a goodness-of-fit chi-square test.}
 
-\item{type}{[\code{character(1)}]\cr Type of pattern analysis:
+\item{type}{[\code{character(1)}: \code{"ngram"}]\cr
+The pattern type to analyze:
 \itemize{
 \item \code{"ngram"}: Extract contiguous n-grams.
 \item \code{"gapped"}: Discover patterns with gaps/wildcards.
 \item \code{"repeated"}: Detect repeated occurrences of the same state.
 }}
 
-\item{pattern}{[\code{character(1)}]\cr Specific pattern to search for as
-a character string (e.g., \code{"A->*->B"}). If provided, \code{type} is ignored.
-Supports wildcards: \code{*} (single) and \verb{**} (multi-wildcard).}
+\item{pattern}{[\code{character(1)}]\cr
+A specific pattern to search for as a character string (e.g., \code{"A->*->B"}).
+If provided, \code{type} is ignored. Supports wildcards \code{*} to denote an
+arbitrary state.}
 
-\item{len}{[\code{integer()}]\cr Pattern lengths to consider for n-grams and
-repeated patterns (default: \code{2:5}).}
+\item{len}{[\code{integer()}: \code{2:5}]\cr
+Pattern lengths to consider for n-grams and repeated patterns.}
 
-\item{gap}{[\code{integer()}]\cr Gap sizes to consider for gapped patterns
-(default: \code{1:3}).}
+\item{gap}{[\code{integer()}: \code{1:3}]\cr
+Gap sizes to consider for gapped patterns.}
 
-\item{min_support}{[\code{integer(1)}]\cr Minimum support threshold, i.e., the
-proportion of sequences that must contain a specific pattern for it to
-be included (default: \code{0.01}).}
+\item{min_freq}{[\code{integer(1)}: \code{2L}]\cr
+Minimum pattern frequency threshold, i.e., the number of times a pattern
+must occur across all sequences for it to be included.}
 
-\item{min_freq}{[\code{integer(1)}]\cr Minimum pattern frequency threshold, i.e.,
-the numbers of times a pattern must occur across all sequences for it to
-be included (default: \code{2}).}
+\item{min_support}{[\code{integer(1)}: \code{0.01}]\cr
+Minimum support threshold, i.e., the proportion of sequences that must
+contain a specific pattern for the pattern to be included.}
 
-\item{start}{[\code{character(1)}]\cr Filter patterns starting with these states.}
+\item{start}{[\code{character()}]\cr
+Filter patterns starting with these states.}
 
-\item{end}{[\code{character(1)}]\cr Filter patterns ending with these states.}
+\item{end}{[\code{character()}]\cr
+Filter patterns ending with these states.}
 
-\item{contains}{[\code{character(1)}]\cr Filter patterns containing these states.}
+\item{contain}{[\code{character()}]\cr
+Filter patterns containing these states.}
 }
 \value{
 An object of class \code{patterns} which is a \code{tibble} with the
 following columns:
 \itemize{
-\item \code{pattern}: the discovered patterns.
-\item \code{length}: the length of the pattern.
-\item \code{frequency}: the number of times the pattern occurs across all sequences.
-\item \code{count}: the number of sequences the pattern occurs in.
-\item \code{support}: the proportion of sequences that contain the pattern.
+\item \code{pattern}: The discovered patterns.
+\item \code{length}: The length of the pattern.
+\item \code{frequency}: The number of times the pattern occurs across all sequences.
+\item \code{proportion}: Frequency divided by the total frequency of patterns of
+the same length.
+\item \code{count}: The number of sequences that contain the pattern.
+\item \code{support}: The proportion of sequences that contain the pattern.
 \item \code{lift}: the support divided by the product of the supports of the
 individual states of the pattern. For wildcards, the support is always 1.
 }
 
-In addition, if \code{group} is provided, additional columns giving the counts
-in each group, the chi-squared test statistic values, and p-values are
-included. If \code{group} has two classes, the degree of separation is also
-provided.
+In addition, if \code{outcome} is provided, additional columns giving the counts
+in each outcome group, the chi-squared test statistic values (\code{chisq}),
+and p-values (\code{p_value})  are included.
 }
 \description{
 Discover various types of patterns in sequence data.
 Provides n-gram extraction, gapped pattern discovery, analysis of repeated
 patterns and targeted pattern search. supports comparison of pattern
-presence between groups.
+presence between outcomes.
 }
 \examples{
 # N-grams
@@ -102,6 +109,5 @@ repeated <- discover_patterns(engagement, type = "repeated")
 
 # Custom pattern with a wildcard state
 custom <- discover_patterns(engagement, pattern = "Active->*")
-
 
 }

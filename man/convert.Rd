@@ -7,17 +7,19 @@
 convert(data, cols = tidyselect::everything(), format = "frequency")
 }
 \arguments{
-\item{data}{[\code{data.frame}]\cr Sequence data in wide format
-(rows are sequences, columns are time points). The input should be
-coercible to a \code{data.frame} object.}
+\item{data}{[\code{data.frame}]\cr
+Sequence data in wide format (rows are sequences, columns are time points).
+The input should be coercible to a \code{data.frame} object.}
 
-\item{cols}{[\code{expression}]\cr A tidy selection of columns that should
-be considered as sequence data. By default, all columns are used.}
+\item{cols}{[\code{expression}: \code{tidyselect::everything()}]\cr
+A tidy selection of columns that should be considered as sequence data.
+By default, all columns are used.}
 
-\item{format}{[\code{character(1)}]\cr The format to convert into:
+\item{format}{[\code{character(1)}: \code{"frequency"}]\cr
+The data format to convert into:
 \itemize{
 \item \code{"frequency"}: Counts of each state per sequence.
-\item \code{"onehot"}: Presence/absence (0/1) of each state per sequence.
+\item \code{"onehot"}: Presence/absence (1/0) of each state per sequence.
 \item \code{"edgelist"}: (state, next state) pairs.
 \item \code{"reverse"}: Same as \code{"edgelist"} but in the reverse direction, i.e.,
 (state, previous state) pairs.

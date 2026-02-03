@@ -24,7 +24,7 @@ test_that("patterns can be filtered based on states", {
   patterns <- discover_patterns(mock_sequence, start = "B", end = "C")
   expect_true("B->A->C" %in% patterns$pattern)
   expect_true("B->C->C" %in% patterns$pattern)
-  patterns <- discover_patterns(mock_sequence, contains = "C|B")
+  patterns <- discover_patterns(mock_sequence, contain = "C|B")
   expect_true("A->C" %in% patterns$pattern)
   expect_true("A->B" %in% patterns$pattern)
   expect_true("C->C" %in% patterns$pattern)

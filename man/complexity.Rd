@@ -7,18 +7,21 @@
 complexity(data, measures = "complexity", window = 7L, align = "center")
 }
 \arguments{
-\item{data}{[\code{ts}, \code{numeric()}]\cr Univariate time series data.}
+\item{data}{[\code{ts}, \code{numeric()}]\cr
+Univariate time series data.}
 
-\item{measures}{[\code{character()}]\cr A vector of measures to calculate.
-See 'Details' for more information on the available measures.}
+\item{measures}{[\code{character()}]\cr
+A vector of measures to calculate. See 'Details' for more information
+on the available measures.}
 
-\item{window}{[\code{integer(1)}]\cr A positive \code{integer} specifying the rolling
-window size. Must be at least \code{2} (default: \code{7}).}
+\item{window}{[\code{integer(1)}: \code{7L}]\cr
+A positive \code{integer} specifying the rolling window size.
+Must be at least \code{2}.}
 
-\item{align}{[\code{character(1)}]\cr Alignment of the window. The available
-options are: \code{"center"} (default), \code{"right"}, and \code{"left"}. The calculated
-measure is assigned to the center, rightmost, or leftmost point of the
-window, respectively.}
+\item{align}{[\code{character(1)}: \code{"center"}]\cr
+Alignment of the window. The available options are: \code{"center"}, \code{"right"},
+and \code{"left"}. The calculated measure is assigned to the center, rightmost,
+or leftmost point of the window, respectively.}
 }
 \value{
 A \code{tibble} with the time index, the original time-series data,

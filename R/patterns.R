@@ -6,54 +6,60 @@
 #' Discover various types of patterns in sequence data.
 #' Provides n-gram extraction, gapped pattern discovery, analysis of repeated
 #' patterns and targeted pattern search. supports comparison of pattern
-#' presence between groups.
+#' presence between outcomes.
 #'
 #' @export
 #' @inheritParams convert
-#' @param group \[`character(1)`, `vector()`]\cr How should the sequences
-#'   be grouped? The option `"last_obs"` assumes that the last non-missing
-#'   observation of each sequence specifies the group membership. Alternatively,
-#'   a column name of `data` or a `vector` with the same length as the number
-#'   of rows. If not provided (default), the sequences will not not grouped.
-#'   When provided, the presence/absence of each pattern is compared between
-#'   the groups using a goodness-of-fit chi-square test.
-#' @param type \[`character(1)`]\cr Type of pattern analysis:
+#' @param outcome \[`character(1)`, `vector()`]\cr
+#'   Optional outcome variable specification. The option `"last_obs"` assumes
+#'   that the last non-missing observation of each sequence specifies the
+#'   outcome. Alternatively, a column name of `data` or a `vector` with the
+#'   same length as the number of rows of `data`. When provided, the
+#'   presence/absence of each pattern is compared between the outcome groups
+#'   using a goodness-of-fit chi-square test.
+#' @param type \[`character(1)`: `"ngram"`]\cr
+#'   The pattern type to analyze:
 #'
 #'   * `"ngram"`: Extract contiguous n-grams.
 #'   * `"gapped"`: Discover patterns with gaps/wildcards.
 #'   * `"repeated"`: Detect repeated occurrences of the same state.
 #'
-#' @param pattern \[`character(1)`]\cr Specific pattern to search for as
-#'   a character string (e.g., `"A->*->B"`). If provided, `type` is ignored.
-#'   Supports wildcards: `*` (single) and `**` (multi-wildcard).
-#' @param len \[`integer()`]\cr Pattern lengths to consider for n-grams and
-#'   repeated patterns (default: `2:5`).
-#' @param gap \[`integer()`]\cr Gap sizes to consider for gapped patterns
-#'   (default: `1:3`).
-#' @param min_support \[`integer(1)`]\cr Minimum support threshold, i.e., the
-#'   proportion of sequences that must contain a specific pattern for it to
-#'   be included (default: `0.01`).
-#' @param min_freq \[`integer(1)`]\cr Minimum pattern frequency threshold, i.e.,
-#'   the numbers of times a pattern must occur across all sequences for it to
-#'   be included (default: `2`).
-#' @param start \[`character(1)`]\cr Filter patterns starting with these states.
-#' @param end \[`character(1)`]\cr Filter patterns ending with these states.
-#' @param contains \[`character(1)`]\cr Filter patterns containing these states.
+#' @param pattern \[`character(1)`]\cr
+#'   A specific pattern to search for as a character string (e.g., `"A->*->B"`).
+#'   If provided, `type` is ignored. Supports wildcards `*` to denote an
+#'   arbitrary state.
+#' @param len \[`integer()`: `2:5`]\cr
+#'   Pattern lengths to consider for n-grams and repeated patterns.
+#' @param gap \[`integer()`: `1:3`]\cr
+#'   Gap sizes to consider for gapped patterns.
+#' @param min_support \[`integer(1)`: `0.01`]\cr
+#'   Minimum support threshold, i.e., the proportion of sequences that must
+#'   contain a specific pattern for the pattern to be included.
+#' @param min_freq \[`integer(1)`: `2L`]\cr
+#'   Minimum pattern frequency threshold, i.e., the number of times a pattern
+#'   must occur across all sequences for it to be included.
+#' @param start \[`character()`]\cr
+#'   Filter patterns starting with these states.
+#' @param end \[`character()`]\cr
+#'   Filter patterns ending with these states.
+#' @param contain \[`character()`]\cr
+#'   Filter patterns containing these states.
 #' @return An object of class `patterns` which is a `tibble` with the
 #'   following columns:
 #'
-#'   * `pattern`: the discovered patterns.
-#'   * `length`: the length of the pattern.
-#'   * `frequency`: the number of times the pattern occurs across all sequences.
-#'   * `count`: the number of sequences the pattern occurs in.
-#'   * `support`: the proportion of sequences that contain the pattern.
+#'   * `pattern`: The discovered patterns.
+#'   * `length`: The length of the pattern.
+#'   * `frequency`: The number of times the pattern occurs across all sequences.
+#'   * `proportion`: Frequency divided by the total frequency of patterns of
+#'     the same length.
+#'   * `count`: The number of sequences that contain the pattern.
+#'   * `support`: The proportion of sequences that contain the pattern.
 #'   * `lift`: the support divided by the product of the supports of the
 #'     individual states of the pattern. For wildcards, the support is always 1.
 #'
-#' In addition, if `group` is provided, additional columns giving the counts
-#' in each group, the chi-squared test statistic values, and p-values are
-#' included. If `group` has two classes, the degree of separation is also
-#' provided.
+#' In addition, if `outcome` is provided, additional columns giving the counts
+#' in each outcome group, the chi-squared test statistic values (`chisq`),
+#' and p-values (`p_value`)  are included.
 #' @examples
 #' # N-grams
 #' ngrams <- discover_patterns(engagement, type = "ngram")
@@ -67,47 +73,39 @@
 #' # Custom pattern with a wildcard state
 #' custom <- discover_patterns(engagement, pattern = "Active->*")
 #'
-#'
 discover_patterns <- function(data, cols = tidyselect::everything(),
-                              group, type = "ngram", pattern,
-                              len = 2:5, gap = 1:3, min_support = 0.01,
-                              min_freq = 2, start, end, contains) {
+                              outcome, type = "ngram", pattern,
+                              len = 2:5, gap = 1:3, min_freq = 2,
+                              min_support = 0.01, start, end, contain) {
   check_missing(data)
   data <- extract_data(data)
-  group <- extract_group(data, group)
-  cols <- get_cols(rlang::enquo(cols), data)
-  last <- FALSE
-  if (is.character(group) && length(group) == 1L) {
-    if (group[1L] == "last_obs") {
-      last <- TRUE
-    } else {
-      cols <- setdiff(cols, group)
-    }
-  }
+  resp <- extract_outcome(data, outcome)
+  cols <- get_cols(rlang::enquo(cols), data) |>
+    setdiff(resp$var)
   data <- prepare_sequence_data(data, cols)
-  if (last) {
+  if (resp$last) {
     data <- extract_last(data$sequences, data$alphabet)
-    group <- data$group
+    resp$outcome <- data$group
   }
   discover_patterns_(
     sequences = data$sequences,
     alphabet = data$alphabet,
-    group = group,
+    group = resp$outcome,
     type = type,
     pattern = pattern,
     len = len,
     gap = gap,
-    min_support = min_support,
     min_freq = min_freq,
+    min_support = min_support,
     start = start,
     end = end,
-    contains = contains
+    contain = contain
   )
 }
 
 discover_patterns_ <- function(sequences, alphabet, group, type, pattern, len,
-                               gap, min_support, min_freq, start, end,
-                               contains) {
+                               gap, min_freq, min_support, start, end,
+                               contain) {
   m <- ncol(sequences)
   type <- check_match(type, c("ngram", "gapped", "repeated"))
   check_range(len, scalar = FALSE, type = "integer", min = 1L, max = m)
@@ -128,7 +126,7 @@ discover_patterns_ <- function(sequences, alphabet, group, type, pattern, len,
   patterns <- format_patterns(patterns)
   patterns |>
     process_patterns(group) |>
-    filter_patterns(min_support, min_freq, start, end, contains) |>
+    filter_patterns(min_freq, min_support, start, end, contain) |>
     pattern_proportions() |>
     pattern_lift(support = support) |>
     structure(
@@ -168,14 +166,6 @@ process_patterns <- function(x, group) {
         m <- length(idx)
         pat_count_grp[, j] <- .colSums(pat_mat[idx, ] > 0, m = m, n = p)
       }
-      pat_sep <- NULL
-      if (g == 2L) {
-        pat_sep <- .colSums(
-          1L * (pat_mat > 0) == num_grp,
-          m = n,
-          n = p
-        )
-      }
     }
     tmp <- data.frame(
       pattern = pat_u,
@@ -189,9 +179,6 @@ process_patterns <- function(x, group) {
       chisq <- chisq_test(x = pat_count_grp, count = pat_count)
       tmp$chisq <- chisq$statistic
       tmp$p_value <- chisq$p_value
-      if (g == 2L) {
-        tmp$separation <- 2 * abs(0.5 - pat_sep / n)
-      }
     }
     tmp$support <- tmp$count / n
     out[[i]] <- tmp
@@ -352,11 +339,11 @@ search_pattern <- function(sequences, alphabet, pattern) {
   list(list(patterns = discovered, length = j))
 }
 
-filter_patterns <- function(patterns, min_support, min_freq,
-                            start, end, contains) {
+filter_patterns <- function(patterns, min_freq, min_support,
+                            start, end, contain) {
   out <- patterns |>
-    dplyr::filter(!!rlang::sym("support") >= min_support) |>
-    dplyr::filter(!!rlang::sym("frequency") >= min_freq)
+    dplyr::filter(!!rlang::sym("frequency") >= min_freq) |>
+    dplyr::filter(!!rlang::sym("support") >= min_support)
   if (!missing(start)) {
     is_prefix <- function(x, prefix) {
       vapply(x, function(y) any(startsWith(y, prefix)), logical(1L))
@@ -371,8 +358,8 @@ filter_patterns <- function(patterns, min_support, min_freq,
     out <- out |>
       dplyr::filter(is_suffix(!!rlang::sym("pattern"), end))
   }
-  if (!missing(contains)) {
-    pat <- paste0(contains, collapse = "|")
+  if (!missing(contain)) {
+    pat <- paste0(contain, collapse = "|")
     out <- out |>
       dplyr::filter(grepl(pat, !!rlang::sym("pattern"), perl = TRUE))
   }
@@ -459,45 +446,55 @@ pattern_lift <- function(patterns, support) {
 #'
 #' Fit a (mixed) logistic regression model to the data using sequence patterns
 #' as predictors. The patterns are first determined using [discover_patterns()]
-#' and used as predictors as specified by the user (either count or presence).
-#' The user can further select the maximum number of patterns to use and how
-#' to prioritize the patterns (separation, frequency, proportion of sequences,
-#' etc.). Additional covariates and random effects can also be included in the
+#' and used as predictors as specified by the user (either frequency or
+#' presence). The user can further select the maximum number of patterns to use
+#' and how to prioritize the patterns (frequency, support, lift, etc.).
+#' Additional covariates and random effects can also be included in the
 #' model. The logistic model is fitted using [stats::glm()] or by
 #' [lme4::glmer()] in the case of a mixed model.
 #'
 #' @export
 #' @inheritParams convert
-#' @param group \[`expression`]\cr An optional tidy selection of columns that
-#'   define the grouping factors. If provided, group-specific parameters
-#'   can be specified via `re_formula`. The default value `NULL` disables
-#'   grouping and a fixed-effects model is fitted instead.
-#' @param outcome \[`character(1)`]\cr Outcome variable specification. The
-#'   option `"last_obs"` (default) assumes that the last non-missing observation
-#'   of each sequence specifies the outcome. This can also be a column name of
-#'   `data` that contains the outcome variable information.
+#' @inheritParams discover_patterns
+#' @param group \[`expression`]\cr
+#'   An optional tidy selection of columns that  define the grouping factors.
+#'   If provided, group-specific random effects can be specified via
+#'   `re_formula`. The default value `NULL` disables grouping and a
+#'   fixed-effects model is fitted instead.
+#' @param outcome \[`character(1)`, `vector()`]\cr
+#'   Outcome variable specification. The option `"last_obs"` assumes that
+#'   the last non-missing observation of each sequence specifies the
+#'   outcome. Alternatively, a column name of `data` or a `vector` with the
+#'   same length as the number of rows of `data`.
+#' @param reference \[`character(1)`]\cr
+#'   The name of the `outcome` class to be taken as the reference.
+#'   The probability of the other class is modeled.
+#'   If not provided, uses the first class in lexicographic order.
 #' @param n \[`integer(1)`]\cr Maximum number of patterns to include in the
 #'   model as covariates. The default is `10`.
-#' @param type \[`character(1)`]\cr Specifies how the patterns are included
-#'   as predictors. The option `"count"` uses the number of times a specific
-#'   pattern occurs in a sequence, whereas option `"presence"` (the default)
-#'   defines a binary predictors that attains the value `1` if the pattern is
-#'   present in the sequence and `0` otherwise.
-#' @param priority \[`character(1)`]\cr Priority of pattern inclusion in the
-#'   model. The available options are:
-#'
-#'   * `"separation"`: Best separation of the `outcome` classes. For
-#'     `type = "count"`, the chi-square statistic is used. For
-#'     `type = "presence"`, the proportion of 1-1 and 0-0 matches between
-#'     the pattern and the `outcome` is used.
-#'   * `"frequency"`: Most frequent patterns.
-#'   * `"support"`: Most common patterns.
-#'
+#' @param freq \[`logical()`]\cr Should the pattern frequency be used as
+#'   a predictor?. If `FALSE` (the default), instead defines a binary predictor
+#'   that attains the value `1` if the pattern is present in the sequence and
+#'   `0` otherwise.
+#' @param priority \[`character()`: `"chisq"`]\cr
+#'   Criteria giving the priority of pattern inclusion in the model.
+#'   Multiple criteria can be selected simultaneously. The available
+#'   options are the column names of the return object of [discover_patterns()],
+#'   excluding `pattern`.
+#' @param desc \[`logical()`, `TRUE`]\cr
+#'   A logical vector of the same length as `priority` that defines which
+#'   criteria should be evaluated in descending order of magnitude.
 #' @param formula \[`formula`]\cr Formula specification for the fixed effects
 #'   of the non-pattern covariates. The default is `~ 1`, adding no covariates.
 #' @param re_formula \[`formula`]\cr Formula specification of the random
 #'   effects when `group` is provided. By default, a random intercept is added
 #'   for each grouping variable in `group`.
+#' @param mixed \[`logical(1)`]\cr Should a mixed model be fitted when `group`
+#'   is provided? (default: `TRUE`)
+#' @param len \[`integer()`: `1:2`]\cr
+#'   Pattern lengths to consider for n-grams and repeated patterns.
+#' @param gap \[`integer()`: `1`]\cr
+#'   Gap sizes to consider for gapped patterns.
 #' @param ... Additional arguments passed to [discover_patterns()] and the
 #'   model-fitting function ([stats::glm()] or [lme4::glmer()]).
 #' @return Either a `glm` or a `glmerMod` object depending on whether
@@ -507,74 +504,101 @@ pattern_lift <- function(patterns, support) {
 #' 1 + 1
 #'
 analyze_outcome <- function(data, cols = tidyselect::everything(),
-                            group = NULL, outcome = "last_obs",
-                            n = 10, type = "presence",
-                            priority = "separation", formula = ~1,
-                            re_formula, ...) {
+                            group = NULL, outcome = "last_obs", reference,
+                            n = 10, freq = FALSE, priority = "chisq",
+                            desc = TRUE, formula = ~1, re_formula,
+                            mixed = TRUE, type = "ngram", len = 1:2, gap = 1,
+                            min_support = 0.01, min_freq = 5, start, end,
+                            contain, ...) {
   check_missing(data)
   check_values(n, strict = TRUE)
-  type <- check_match(type, c("presence", "count"))
-  priority <- check_match(priority, c("separation", "frequency", "support"))
+  check_flag(freq)
+  check_flag(mixed)
+  stopifnot_(
+    !mixed || requireNamespace("lme4", quietly = TRUE),
+    "Please install the {.pkg lme4} package to random effects."
+  )
+  priority <- check_match(
+    priority,
+    c(
+      "length", "frequency", "proportion",
+      "count", "support", "lift", "chisq", "p_value"
+    )
+  )
   data <- extract_data(data)
-  group <- get_cols(rlang::enquo(group), data)
+  resp <- extract_outcome(data, outcome)
+  group <- ifelse_(
+    is.null(attr(data, "group")),
+    get_cols(rlang::enquo(group), data),
+    attr(data, "group")
+  ) |>
+    make.names()
   cols <- get_cols(rlang::enquo(cols), data) |>
-    setdiff(c(group, outcome))
-  mixed <- !is.null(group)
+    setdiff(c(group, resp$var))
+  mixed <- length(group) > 0 && mixed
   seqdata <- prepare_sequence_data(data, cols)
-  if (identical(outcome, "last_obs")) {
+  if (resp$last) {
     seqdata <- extract_last(seqdata$sequences, seqdata$alphabet)
-    outcome <- seqdata$group
-    data$.outcome <- factor(outcome)
+    resp$outcome <- seqdata$group
+  }
+  if (is.null(resp$var)) {
+    data$.outcome <- factor(resp$outcome)
+    resp$outcome <- seqdata$group
     response <- ".outcome"
   } else {
-    outcome <- as.character(outcome)
-    stopifnot_(
-      length(outcome) == 1L && outcome %in% names(data),
-      "Argument {.arg outcome} must be a column name of {.arg data}."
-    )
-    response <- outcome
-    data[[outcome]] <- factor(data[[outcome]])
-    outcome <- data[[outcome]]
+    response <- resp$var
+    data[[response]] <- factor(data[[response]])
   }
+  if (!missing(reference)) {
+    check_string(reference)
+    data[[response]] <- stats::relevel(data[[response]], reference)
+  }
+  outcome <- data[[response]]
   stopifnot_(
     n_unique(outcome) == 2L,
     "Argument {.arg outcome} must specify an outcome variable with two classes."
   )
-  dots <- list(...)
-  dp_args_names <- c(
-    "type", "pattern", "len",
-    "gap", "min_support", "min_freq",
-    "start", "end", "contains"
+  arng_exprs <- purrr::map2(
+    priority,
+    desc,
+    function(x, y) {
+      ifelse_(
+        y,
+        rlang::expr(dplyr::desc(!!rlang::sym(x))),
+        rlang::expr(!!rlang::sym(x))
+      )
+    }
   )
-  dots_names <- names(dots)
-  fit_args <- dots[setdiff(dots_names, dp_args_names)]
-  dp_args <- dots[intersect(dots_names, dp_args_names)]
-  dp_args$sequences <- seqdata$sequences
-  dp_args$alphabet <- seqdata$alphabet
-  dp_args$group <- outcome
-  dp_args$type <- dp_args$type %||% "ngram"
-  dp_args$len <- dp_args$len %||% 1:2
-  dp_args$gap <- dp_args$gap %||% 1
-  dp_args$min_support <- dp_args$min_support %||% 0.05
-  dp_args$min_freq <- dp_args$min_freq %||% 10L
-  disc <- do.call(
-    getFromNamespace("discover_patterns_", "codyna"),
-    dp_args
+  disc <- discover_patterns_(
+    sequences = seqdata$sequences,
+    alphabet = seqdata$alphabet,
+    group = outcome,
+    type = type,
+    len = len,
+    gap = gap,
+    min_freq = min_freq,
+    min_support = min_support,
+    start = start,
+    end = end,
+    contain = contain
   ) |>
-    dplyr::arrange(dplyr::desc(!!rlang::sym(priority))) |>
-    dplyr::slice_head(n = n)
+    dplyr::filter(dplyr::if_all(tidyselect::starts_with("count_"), ~ .x > 0)) |>
+    dplyr::arrange(!!!arng_exprs) |>
+    dplyr::slice_head(n = n) |>
+    dplyr::arrange(!!rlang::sym("pattern"))
   filtered <- disc$pattern
   patterns <- attr(disc, "patterns") |>
     lapply(
       function(x) {
         out <- x$patterns
-        colnames(out) <- x$unique
+        colnames(out) <- gsub("->", "_to_", x$unique)
         out[, x$unique %in% filtered]
       }
     ) |>
     do.call(what = base::cbind) |>
     as.data.frame()
-  if (type == "presence") {
+  filtered <- make.names(names(patterns))
+  if (!freq) {
     patterns <- patterns |>
       dplyr::mutate(
         dplyr::across(
@@ -583,7 +607,7 @@ analyze_outcome <- function(data, cols = tidyselect::everything(),
         )
       )
   }
-  pat_formula <- paste0("`", filtered, "`") |>
+  pat_formula <- paste0(filtered) |>
     paste0(collapse = " + ") |>
     paste("~ ", ... = _) |>
     stats::as.formula()
@@ -606,18 +630,29 @@ analyze_outcome <- function(data, cols = tidyselect::everything(),
     formula <- stats::update(formula, re_formula)
     fit_fun <- lme4::glmer
   }
+  df <- cbind(data, patterns)
+  names(df) <- make.names(names(df), unique = TRUE)
+  fit_args <- list(...)
   fit_args$formula <- formula
   fit_args$family <- stats::binomial()
-  fit_args$data <- cbind(data, patterns)
+  fit_args$data <- df
   fit <- try_(do.call(fit_fun, fit_args))
   stopifnot_(
     !inherits(fit, "try-error"),
-    "Model fitting failed"
+    c(
+      "Model fitting failed.",
+      `x` = attr(fit, "condition")$message
+    )
   )
   if (mixed) {
-    fit@call$data <- NULL
+    fit@call$data <- quote(df)
   } else {
-    fit$call <- NULL
+    fit$call <- call(
+      name = "glm",
+      formula = quote(f),
+      family = quote(binomial),
+      data = quote(df)
+    )
   }
   fit
 }

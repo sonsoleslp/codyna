@@ -4,15 +4,17 @@
 #' such as frequency table, one-Hot encoding, or edge list (graph format).
 #'
 #' @export
-#' @param data \[`data.frame`]\cr Sequence data in wide format
-#'   (rows are sequences, columns are time points). The input should be
-#'   coercible to a `data.frame` object.
-#' @param cols \[`expression`]\cr A tidy selection of columns that should
-#'   be considered as sequence data. By default, all columns are used.
-#' @param format \[`character(1)`]\cr The format to convert into:
+#' @param data \[`data.frame`]\cr
+#'   Sequence data in wide format (rows are sequences, columns are time points).
+#'   The input should be coercible to a `data.frame` object.
+#' @param cols \[`expression`: `tidyselect::everything()`]\cr
+#'   A tidy selection of columns that should be considered as sequence data.
+#'   By default, all columns are used.
+#' @param format \[`character(1)`: `"frequency"`]\cr
+#'   The data format to convert into:
 #'
 #'   * `"frequency"`: Counts of each state per sequence.
-#'   * `"onehot"`: Presence/absence (0/1) of each state per sequence.
+#'   * `"onehot"`: Presence/absence (1/0) of each state per sequence.
 #'   * `"edgelist"`: (state, next state) pairs.
 #'   * `"reverse"`: Same as `"edgelist"` but in the reverse direction, i.e.,
 #'     (state, previous state) pairs.
@@ -150,48 +152,56 @@ extract_data <- function(x) {
     dim(out) <- dim(x$data)
     colnames(out) <- colnames(x$data)
     out <- as.data.frame(out)
+    out$.group <- attr(x, "levels")[unlist(group)]
+    attr(out, "group") <- ".group"
     attr(out, "alphabet") <- attr(x$data, "alphabet")
-    attr(out, "group") <- attr(x, "levels")[unlist(group)]
     return(out)
   }
   x
 }
 
-extract_group <- function(x, group) {
-  group_attr <- attr(x, "group")
-  if (!is.null(group_attr)) {
-    return(group_attr)
+extract_outcome <- function(x, outcome) {
+  if (missing(outcome)) {
+    return(list(last = FALSE, outcome = NULL, var = NULL))
   }
-  if (missing(group)) {
-    return(NULL)
-  }
-  n_group <- length(group)
+  n_out <- length(outcome)
   stopifnot_(
-    n_group == nrow(x) || n_group == 1L,
-    "Argument {.arg group} must be either {.val last_obs}, a column name of
+    n_out == nrow(x) || n_out == 1L,
+    "Argument {.arg outcome} must be either {.val last_obs}, a column name of
      {.arg data} or a {.cls vector} with the same length as the
      number of rows of {.arg data}."
   )
-  if (n_group == 1L && group != "last_obs") {
-    group <- as.character(group)
+  if (n_out == 1L) {
+    if (outcome == "last_obs") {
+      return(list(last = TRUE, outcome = NULL, var = NULL))
+    }
+    outcome <- as.character(outcome)
     stopifnot_(
-      group %in% names(x),
-      "The column {.val {group}} must exist in the data."
+      outcome %in% names(x),
+      "The column {.val {outcome}} must exist in the data."
     )
-    return(x[[group]])
+    return(list(last = FALSE, outcome = x[[outcome]]), var = outcome)
   }
-  group
+  list(last = FALSE, outcome = outcome, var = NULL)
 }
 
 extract_last <- function(x, alphabet) {
+  n <- nrow(x)
   nas <- is.na(x)
   last_obs <- max.col(!nas, ties.method = "last")
-  group <- alphabet[x[, last_obs]]
-  x[, last_obs] <- NA
-  alphabet <- setdiff(alphabet, unique(group))
-  stopifnot_(
-    all(!x %in% alphabet),
-    "Group identifiers must not be states of the sequence data."
-  )
+  idx <- cbind(seq_len(n), last_obs)
+  last <- x[idx]
+  last_vals <- unique(last)
+  group <- alphabet[last]
+  x[idx] <- NA
+  x[x %in% last_vals] <- NA
+  groups <- unique(group)
+  vals <- seq_along(alphabet)
+  alphabet <- setdiff(alphabet, groups)
+  vals[last_vals] <- NA
+  vals[-last_vals] <- seq_along(alphabet)
+  d <- dim(x)
+  x <- vals[x]
+  dim(x) <- d
   list(sequences = x, alphabet = alphabet, group = group)
 }
