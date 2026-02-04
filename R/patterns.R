@@ -457,7 +457,7 @@ pattern_lift <- function(patterns, support) {
 #' @inheritParams convert
 #' @inheritParams discover_patterns
 #' @param group \[`expression`]\cr
-#'   An optional tidy selection of columns that  define the grouping factors.
+#'   An optional tidy selection of columns that define the grouping factors.
 #'   If provided, group-specific random effects can be specified via
 #'   `re_formula`. The default value `NULL` disables grouping and a
 #'   fixed-effects model is fitted instead.
@@ -484,6 +484,7 @@ pattern_lift <- function(patterns, support) {
 #' @param desc \[`logical()`, `TRUE`]\cr
 #'   A logical vector of the same length as `priority` that defines which
 #'   criteria should be evaluated in descending order of magnitude.
+#'   Automatically recycled if the lengths do not match.
 #' @param formula \[`formula`]\cr Formula specification for the fixed effects
 #'   of the non-pattern covariates. The default is `~ 1`, adding no covariates.
 #' @param re_formula \[`formula`]\cr Formula specification of the random
@@ -500,8 +501,8 @@ pattern_lift <- function(patterns, support) {
 #' @return Either a `glm` or a `glmerMod` object depending on whether
 #'   random effects were included.
 #' @examples
-#' # TODO
-#' 1 + 1
+#' fit <- analyze_outcome(engagement, outcome = rep(1:2, each = 500))
+#' summary(fit)
 #'
 analyze_outcome <- function(data, cols = tidyselect::everything(),
                             group = NULL, outcome = "last_obs", reference,
@@ -514,9 +515,14 @@ analyze_outcome <- function(data, cols = tidyselect::everything(),
   check_values(n, strict = TRUE)
   check_flag(freq)
   check_flag(mixed)
+  check_formula(formula)
+  stopifnot_(
+    is.logical(desc),
+    "Argument {.arg desc} must be a {.cls logical} vector."
+  )
   stopifnot_(
     !mixed || requireNamespace("lme4", quietly = TRUE),
-    "Please install the {.pkg lme4} package to random effects."
+    "Please install the {.pkg lme4} package to use random effects."
   )
   priority <- check_match(
     priority,
@@ -526,6 +532,7 @@ analyze_outcome <- function(data, cols = tidyselect::everything(),
     ),
     several.ok = TRUE
   )
+  desc <- rep(desc, length.out = length(priority))
   data <- extract_data(data, group = TRUE, meta = TRUE)
   resp <- extract_outcome(data, outcome)
   group <- ifelse_(
@@ -534,7 +541,11 @@ analyze_outcome <- function(data, cols = tidyselect::everything(),
     attr(data, "group")
   ) |>
     make.names()
-  cols <- get_cols(rlang::enquo(cols), data) |>
+  cols <- ifelse_(
+    is.null(attr(data, "cols")),
+    cols <- get_cols(rlang::enquo(cols), data),
+    attr(data, "cols")
+  ) |>
     setdiff(c(group, resp$var))
   mixed <- length(group) > 0 && mixed
   seqdata <- prepare_sequence_data(data, cols)
@@ -557,18 +568,19 @@ analyze_outcome <- function(data, cols = tidyselect::everything(),
   outcome <- data[[response]]
   stopifnot_(
     n_unique(outcome) == 2L,
-    "Argument {.arg outcome} must specify an outcome variable with two classes."
+    "Argument {.arg outcome} must specify
+     an outcome variable with two classes."
   )
-  arng_exprs <- purrr::map2(
-    priority,
-    desc,
+  arng_exprs <- Map(
     function(x, y) {
       ifelse_(
         y,
         rlang::expr(dplyr::desc(!!rlang::sym(x))),
         rlang::expr(!!rlang::sym(x))
       )
-    }
+    },
+    priority,
+    desc
   )
   disc <- discover_patterns_(
     sequences = seqdata$sequences,
@@ -628,6 +640,7 @@ analyze_outcome <- function(data, cols = tidyselect::everything(),
       paste0("(1 | ", group, ")", collapse = " + ") |>
       paste("~ . + ", ... = _) |>
       stats::as.formula()
+    check_formula(re_formula)
     formula <- stats::update(formula, re_formula)
     fit_fun <- lme4::glmer
   }

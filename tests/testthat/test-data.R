@@ -17,3 +17,12 @@ test_that("tna objects can be converted to sequence data", {
   expect_equal(data$sequences, mock_sequence_num, ignore_attr = TRUE)
   expect_equal(data$alphabet, c("A", "B", "C"))
 })
+
+test_that("data extraction fails from a matrix without colnames", {
+  mat <- as.matrix(mock_sequence)
+  dimnames(mat) <- NULL
+  extract_data(mat) |>
+    expect_error(
+      "Argument `data` must have column names when a <matrix> is provided"
+    )
+})

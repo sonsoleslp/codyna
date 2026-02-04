@@ -130,3 +130,15 @@ check_values <- function(x, type = "integer", strict = FALSE,
     "Argument {.arg {arg}} must be a {strictness} {.cls {type}}{suffix}."
   )
 }
+
+#' Check if argument is a formula object
+#'
+#' @param x An \R object.
+#' @noRd
+check_formula <- function(x) {
+  arg <- deparse(substitute(x))
+  stopifnot_(
+    inherits(x, "formula"),
+    "Argument {.arg {arg}} must be a {.cls formula} object."
+  )
+}

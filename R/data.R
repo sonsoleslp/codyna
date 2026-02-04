@@ -161,6 +161,7 @@ extract_data <- function(x, group = FALSE, meta = FALSE) {
   }
   if (inherits(x, "tna_data")) {
     out <- x$sequence_data
+    attr(out, "cols") <- names(out)
     if (meta) {
       out <- cbind(x$meta_data, out)
     }

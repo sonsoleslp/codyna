@@ -46,6 +46,11 @@ mock_group_tna <- structure(
       )
     )
   ),
+  levels = c("Group 1", "Group 2"),
+  groups = list(
+    c(1L, 1L),
+    c(2L, 2L, 2L)
+  ),
   class = "group_tna"
 )
 
@@ -56,3 +61,9 @@ mock_tna_data <- structure(
   ),
   class = "tna_data"
 )
+
+idx <- apply(
+  engagement,
+  1L, function(x) !all(c("Active", "Average", "Disengaged") %in% x)
+) |>
+  which()

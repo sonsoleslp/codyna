@@ -402,9 +402,9 @@ plot_patterns_all <- function(x, n, prop) {
     groups <- unique(attr(x, "group"))
     count_cols <- paste0("count_", groups)
     x <- x |>
-      dplyr::select(c("pattern", count_cols)) |>
+      dplyr::select(tidyselect::all_of(c("pattern", count_cols))) |>
       tidyr::pivot_longer(
-        cols = count_cols,
+        cols = tidyselect::all_of(count_cols),
         names_to = "group",
         names_prefix = "count_",
         values_to = "count"
@@ -450,7 +450,7 @@ plot_patterns_group <- function(x, n, group, global) {
   count_col <- paste0("count_", group)
   global_prop <- mean(attr(x, "group") == group)
   x |>
-    dplyr::select(c("pattern", "count", count_col)) |>
+    dplyr::select(tidyselect::all_of(c("pattern", "count", count_col))) |>
     dplyr::mutate(
       prop = !!rlang::sym(count_col) / !!rlang::sym("count"),
       group = factor(
