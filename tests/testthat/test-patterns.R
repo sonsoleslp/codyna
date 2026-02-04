@@ -44,3 +44,14 @@ test_that("output has zero rows if no patterns are found", {
   patterns <- discover_patterns(mock_sequence, min_freq = 6)
   expect_true(nrow(patterns) == 0L)
 })
+
+test_that("pattern discovery supports different input formats", {
+  discover_patterns(engagement[1:100, ]) |>
+    expect_error(NA)
+  discover_patterns(mock_tna) |>
+    expect_error(NA)
+  discover_patterns(mock_group_tna) |>
+    expect_error(NA)
+  discover_patterns(mock_tna_data) |>
+    expect_error(NA)
+})

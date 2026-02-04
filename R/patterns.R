@@ -523,9 +523,10 @@ analyze_outcome <- function(data, cols = tidyselect::everything(),
     c(
       "length", "frequency", "proportion",
       "count", "support", "lift", "chisq", "p_value"
-    )
+    ),
+    several.ok = TRUE
   )
-  data <- extract_data(data)
+  data <- extract_data(data, group = TRUE, meta = TRUE)
   resp <- extract_outcome(data, outcome)
   group <- ifelse_(
     is.null(attr(data, "group")),

@@ -12,6 +12,7 @@
 #'
 sequence_indices <- function(data, cols = tidyselect::everything(),
                              favorable, omega = 1.0) {
+  data <- extract_data(data)
   cols <- get_cols(rlang::enquo(cols), data)
   data <- prepare_sequence_data(data, cols)
   sequence_indices_(data, favorable, omega)

@@ -122,7 +122,7 @@ prepare_timeseries_data <- function(x) {
   list(values = values, time = time)
 }
 
-extract_data <- function(x) {
+extract_data <- function(x, group = FALSE, meta = FALSE) {
   if (is.matrix(x)) {
     stopifnot_(
       !is.null(colnames(x)),
@@ -145,16 +145,25 @@ extract_data <- function(x) {
     return(out)
   }
   if (inherits(x, "group_tna")) {
-    group <- attr(x, "groups")
     alphabet <- attr(x[[1L]]$data, "alphabet")
     data <- do.call(base::rbind, lapply(x, "[[", "data"))
     out <- alphabet[c(data)]
-    dim(out) <- dim(x$data)
-    colnames(out) <- colnames(x$data)
+    dim(out) <- dim(data)
+    colnames(out) <- colnames(data)
     out <- as.data.frame(out)
-    out$.group <- attr(x, "levels")[unlist(group)]
-    attr(out, "group") <- ".group"
-    attr(out, "alphabet") <- attr(x$data, "alphabet")
+    attr(out, "alphabet") <- alphabet
+    if (group) {
+      group <- attr(x, "groups")
+      out$.group <- attr(x, "levels")[unlist(group)]
+      attr(out, "group") <- ".group"
+    }
+    return(out)
+  }
+  if (inherits(x, "tna_data")) {
+    out <- x$sequence_data
+    if (meta) {
+      out <- cbind(x$meta_data, out)
+    }
     return(out)
   }
   x

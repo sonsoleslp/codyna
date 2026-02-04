@@ -28,3 +28,31 @@ mock_tna <- structure(
   ),
   class = "tna"
 )
+
+mock_group_tna <- structure(
+  list(
+    `Group 1` = list(
+      weights = 0,
+      data = structure(
+        mock_sequence_num[1:3, ],
+        alphabet = c("A", "B", "C")
+      )
+    ),
+    `Group 1` = list(
+      weights = 0,
+      data = structure(
+        mock_sequence_num[4:5, ],
+        alphabet = c("A", "B", "C")
+      )
+    )
+  ),
+  class = "group_tna"
+)
+
+mock_tna_data <- structure(
+  list(
+    sequence_data = mock_sequence,
+    meta_data = data.frame(group = c(1, 1, 1, 2, 2))
+  ),
+  class = "tna_data"
+)
