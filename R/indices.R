@@ -70,7 +70,7 @@ sequence_indices_ <- function(data, favorable, omega) {
     spells <- runs$lengths[runs_obs]
     mean_spells[i] <- mean(spells)
     max_spells[i] <- max(spells)
-    u_states[i] <- length(freq)
+    u_states[i] <- sum(freq != 0)
     long_ent[i] <- -sum(prop[pos] * log(prop[pos])) / log(u_vals)
     simpson[i] <- 1.0 - sum(prop^2)
     self <- sum(diag(trans[i, , ]))
